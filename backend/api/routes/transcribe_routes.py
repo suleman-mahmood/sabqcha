@@ -80,6 +80,12 @@ async def transcribe(body: TranscribeBody):
         "mcqs": [m.model_dump(mode="json") for m in llm_res.mcqs]
     })
 
+@router.get("")
+async def get_all_transcription_docs():
+    from api.main import db  # Circular import bs
+
+    docs = [doc.id for doc in db.collection("transcription").stream()]
+    return Response({"doc_ids": docs})
 
 @router.get("/mcqs/{transcription_id}")
 async def get_transcription_mcqs(transcription_id: str):
