@@ -1,6 +1,4 @@
 import os
-from openai.types.chat.completion_create_params import ResponseFormat
-from openai.types.shared_params.response_format_json_schema import JSONSchema, ResponseFormatJSONSchema
 import requests
 import tempfile
 
@@ -8,7 +6,7 @@ from fastapi import APIRouter, Response
 from loguru import logger
 from pydantic import BaseModel
 
-from api.models.transcription_models import LlmMcq, LlmMcqResponse, TranscriptionDoc
+from api.models.transcription_models import LlmMcqResponse, TranscriptionDoc
 from api.prompts import SYSTEM_PROMPT, generate_user_prompt
 
 
@@ -79,6 +77,16 @@ async def transcribe(body: TranscribeBody):
 
     # Save these mcqs
     doc_ref.update({
-        "task": [m.model_dump(mode="json") for m in llm_res.mcqs]
+        "mcqs": [m.model_dump(mode="json") for m in llm_res.mcqs]
     })
 
+
+@router.get("/mcqs/{transcription_id}")
+async def get_transcription_mcqs(transcription_id: str):
+    from api.main import db  # Circular import bs
+
+    doc = db.collection("transcription").document(transcription_id).get()
+    trans = TranscriptionDoc.model_validate(doc.to_dict())
+
+    res = {"mcqs": [m.model_dump(mode="json") for m in trans.mcqs]}
+    return Response(res)
