@@ -1,3 +1,4 @@
+import os
 import firebase_admin
 import sys
 
@@ -6,6 +7,7 @@ from dotenv import load_dotenv
 from loguru import logger
 from firebase_admin import credentials, storage, firestore
 from api.routes import transcribe_routes
+from openai import OpenAI
 
 load_dotenv()
 
@@ -29,6 +31,9 @@ firebase_admin.initialize_app(cred, {
 })
 bucket = storage.bucket()
 db = firestore.client()
+
+# Setup OpenAI
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Setup FastAPI
 app = FastAPI()

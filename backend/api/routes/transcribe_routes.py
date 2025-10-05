@@ -1,4 +1,6 @@
 import os
+from openai.types.chat.completion_create_params import ResponseFormat
+from openai.types.shared_params.response_format_json_schema import JSONSchema, ResponseFormatJSONSchema
 import requests
 import tempfile
 
@@ -6,7 +8,8 @@ from fastapi import APIRouter, Response
 from loguru import logger
 from pydantic import BaseModel
 
-from api.models.transcription_models import TranscriptionDoc
+from api.models.transcription_models import LlmMcq, LlmMcqResponse, TranscriptionDoc
+from api.prompts import SYSTEM_PROMPT, generate_user_prompt
 
 
 router = APIRouter(prefix="/transcribe")
@@ -19,7 +22,7 @@ class TranscribeBody(BaseModel):
 
 @router.post("")
 async def transcribe(body: TranscribeBody):
-    from api.main import bucket, db # Circular import bs
+    from api.main import bucket, db, openai_client # Circular import bs
 
     with tempfile.NamedTemporaryFile(suffix=".mp3") as temp_file:
         blob = bucket.blob(body.file_path)
@@ -51,6 +54,31 @@ async def transcribe(body: TranscribeBody):
         logger.error("No transcribtions in response")
         return Response("Uplift API Failed", status_code=400)
 
+    transcript = res_json["transcript"]
 
-    doc = TranscriptionDoc(audio_file_path=body.file_path, transcribed_content=res_json["transcript"])
-    db.collection("transcription").add(doc.model_dump())
+    doc = TranscriptionDoc(audio_file_path=body.file_path, transcribed_content=transcript)
+    _, doc_ref = db.collection("transcription").add(doc.model_dump())
+    doc_id: str = doc_ref.id
+
+    # Define the messages
+    openai_res = openai_client.responses.parse(
+        model="gpt-5-mini",
+        input=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": generate_user_prompt(transcript)}
+        ],
+        text_format=LlmMcqResponse
+    )
+    llm_res = openai_res.output_parsed
+    if not llm_res:
+        logger.error("Invalid Response form OpenAI: {}", openai_res.model_dump(mode="json"))
+        return Response("Invalid response from OpenAI", status_code=400)
+
+    doc_ref = db.collection("transcription").document(doc_id)
+    doc_ref.update({"llm_raw_response": llm_res})
+
+    # Save these mcqs
+    doc_ref.update({
+        "task": [m.model_dump(mode="json") for m in llm_res.mcqs]
+    })
+
