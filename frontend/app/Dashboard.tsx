@@ -27,7 +27,8 @@ export default function Dashboard() {
       try {
         const res = await fetch("/api/transcribe/list");
         const data = await res.json();
-        if (data.docs) setLectures(data.docs);
+        // ✅ Fix: backend returns "doc_ids"
+        if (data.doc_ids) setLectures(data.doc_ids);
       } catch (err) {
         console.error("Failed to fetch lectures:", err);
       }
@@ -35,7 +36,7 @@ export default function Dashboard() {
     fetchLectures();
   }, []);
 
-  // 🔹 Handle file upload
+  // 🔹 Handle file upload + trigger transcription
   const handleUpload = async (file: File) => {
     setUploading(true);
     const storageRef = ref(storage, `lecture/${file.name}`);
@@ -44,8 +45,7 @@ export default function Dashboard() {
     uploadTask.on(
       "state_changed",
       (snapshot) => {
-        const percent =
-          (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        const percent = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
         setProgress(Math.round(percent));
       },
       (error) => {
@@ -57,15 +57,19 @@ export default function Dashboard() {
         console.log("✅ File uploaded at:", downloadURL);
 
         // Call backend to transcribe the uploaded file
-        const res = await fetch(`/api/transcribe?filePath=${encodeURIComponent(downloadURL)}`);
-        const data = await res.json();
+        const res = await fetch(`/api/transcribe`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filePath: downloadURL }),
+        });
 
-        if (data.transcription_id) {
-          // Refresh lecture list after new transcription is ready
-          const listRes = await fetch("/api/transcribe/list");
-          const listData = await listRes.json();
-          if (listData.docs) setLectures(listData.docs);
-        }
+        const data = await res.json();
+        console.log("Transcription started:", data);
+
+        // Refresh lecture list
+        const listRes = await fetch("/api/transcribe/list");
+        const listData = await listRes.json();
+        if (listData.doc_ids) setLectures(listData.doc_ids);
 
         setUploading(false);
       }
@@ -91,6 +95,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-5xl mx-auto">
+        {/* 🔹 Title */}
         <h1 className="text-3xl font-bold text-center mb-8">Dashboard</h1>
 
         {/* 🔸 Upload Section */}
@@ -118,20 +123,42 @@ export default function Dashboard() {
         <Card className="p-6 mb-8">
           <CardContent>
             <h2 className="text-xl font-semibold mb-4">Available Lectures</h2>
-            {lectures.length === 0 && (
+
+            {lectures.length === 0 ? (
               <p className="text-gray-500 text-sm">No lectures found yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {/* Get Started section */}
+                <div className="p-4 rounded-lg bg-gray-100 border text-center">
+                  <p className="text-gray-700 font-medium mb-2">
+                    🎧 Get Started — Select a lecture below to view its MCQs
+                  </p>
+                </div>
+
+                {/* Lecture cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {lectures.map((id) => (
+                    <Card
+                      key={id}
+                      className={`cursor-pointer transition-all hover:shadow-lg ${
+                        selectedId === id ? "ring-2 ring-blue-500" : ""
+                      }`}
+                      onClick={() => handleSelectLecture(id)}
+                    >
+                      <CardContent className="p-4 text-center">
+                        <p className="font-medium text-gray-800 truncate">{id}</p>
+                        <Button
+                          className="mt-3 w-full"
+                          variant={selectedId === id ? "default" : "outline"}
+                        >
+                          View MCQs
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
             )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {lectures.map((id) => (
-                <Button
-                  key={id}
-                  variant={selectedId === id ? "default" : "outline"}
-                  onClick={() => handleSelectLecture(id)}
-                >
-                  {id}
-                </Button>
-              ))}
-            </div>
           </CardContent>
         </Card>
 

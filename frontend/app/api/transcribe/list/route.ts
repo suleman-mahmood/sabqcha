@@ -7,7 +7,7 @@ export async function GET() {
     const data = await res.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "Failed to fetch transcriptions" }, { status: 500 });
+    console.error("Failed to fetch lecture list:", error);
+    return NextResponse.json({ error: "Failed to fetch lecture list" }, { status: 500 });
   }
 }

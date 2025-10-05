@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const transcriptionId = searchParams.get("transcription_id");
+
   if (!transcriptionId)
     return NextResponse.json({ error: "Missing transcription_id" }, { status: 400 });
 
@@ -12,7 +13,7 @@ export async function GET(req: Request) {
     const data = await res.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error(error);
+    console.error("Failed to fetch MCQs:", error);
     return NextResponse.json({ error: "Failed to fetch MCQs" }, { status: 500 });
   }
 }
