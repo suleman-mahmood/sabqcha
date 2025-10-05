@@ -6,6 +6,7 @@ import { storage } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Upload } from "lucide-react";
+import {useRouter } from "next/navigation";
 
 interface MCQ {
   question: string;
@@ -20,6 +21,7 @@ export default function Dashboard() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mcqs, setMcqs] = useState<MCQ[]>([]);
   const [loadingMCQs, setLoadingMCQs] = useState(false);
+  const router = useRouter();
 
   // 🔹 Fetch all available lectures from backend
   useEffect(() => {
@@ -137,25 +139,20 @@ export default function Dashboard() {
 
                 {/* Lecture cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {lectures.map((id) => (
-                    <Card
-                      key={id}
-                      className={`cursor-pointer transition-all hover:shadow-lg ${
-                        selectedId === id ? "ring-2 ring-blue-500" : ""
-                      }`}
-                      onClick={() => handleSelectLecture(id)}
-                    >
-                      <CardContent className="p-4 text-center">
-                        <p className="font-medium text-gray-800 truncate">{id}</p>
-                        <Button
-                          className="mt-3 w-full"
-                          variant={selectedId === id ? "default" : "outline"}
-                        >
-                          View MCQs
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
+                {lectures.map((id) => (
+                  <Card
+                    key={id}
+                    className="cursor-pointer transition-all hover:shadow-lg"
+                    onClick={() => router.push(`/mcqs/${id}`)}
+                  >
+                    <CardContent className="p-4 text-center">
+                      <p className="font-medium text-gray-800 truncate">{id}</p>
+                      <Button className="mt-3 w-full" variant="outline">
+                        View MCQs
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
                 </div>
               </div>
             )}
