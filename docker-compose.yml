@@ -8,8 +8,6 @@ services:
       - "8000:80"
     volumes:
       - ./backend:/app
-    environment:
-      - UVICORN_RELOAD=false
     restart: always
 
   frontend:
@@ -19,10 +17,6 @@ services:
     container_name: sabqcha-frontend
     ports:
       - "3000:3000"
-    environment:
-      - UPLIFT_API_KEY=''
-      - OPENAI_API_KEY=''
-      - NEXT_PUBLIC_TRANSCRIBE_API_BASE=http://backend:80
     depends_on:
       - backend
     restart: always
