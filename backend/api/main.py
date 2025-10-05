@@ -3,6 +3,8 @@ import firebase_admin
 import sys
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from dotenv import load_dotenv
 from loguru import logger
 from firebase_admin import credentials, storage, firestore
@@ -37,6 +39,14 @@ openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Setup FastAPI
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],      # Allow all origins
+    allow_credentials=True,   # Allow cookies, authorization headers, etc.
+    allow_methods=["*"],      # Allow all HTTP methods (GET, POST, etc.)
+    allow_headers=["*"],      # Allow all headers
+)
 
 app.include_router(transcribe_routes.router)
 
