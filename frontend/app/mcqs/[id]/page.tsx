@@ -20,6 +20,7 @@ export default function MCQPage() {
   const [results, setResults] = useState<{ [index: number]: boolean }>({});
   const [score, setScore] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [title, setTitle] = useState("");
 
   // 🔹 Fetch MCQs for the selected transcription ID
   useEffect(() => {
@@ -27,6 +28,7 @@ export default function MCQPage() {
       try {
         const res = await fetch(`/api/mcqs?transcription_id=${id}`);
         const data = await res.json();
+        setTitle(data.title)
         if (data.mcqs) setMcqs(data.mcqs);
       } catch (err) {
         console.error("Failed to fetch MCQs:", err);
@@ -61,7 +63,7 @@ export default function MCQPage() {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">MCQs for {id}</h1>
+          <h1 className="text-2xl font-bold">MCQs for {title}</h1>
           <Button variant="outline" onClick={() => router.push("/dashboard")}>
             ← Back to Dashboard
           </Button>
