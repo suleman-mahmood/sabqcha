@@ -2,16 +2,20 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    const { filePath } = await req.json();
+    const { filePath, title } = await req.json();
 
-    if (!filePath)
-      return NextResponse.json({ error: "Missing filePath" }, { status: 400 });
+    if (!filePath || !title) {
+      return NextResponse.json(
+        { error: "Missing filePath or title" },
+        { status: 400 }
+      );
+    }
 
     const baseUrl = process.env.NEXT_PUBLIC_TRANSCRIBE_API_BASE!;
     const res = await fetch(`${baseUrl}/transcribe`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ file_path: filePath }),
+      body: JSON.stringify({ file_path: filePath, title }),
     });
 
     if (!res.ok) {

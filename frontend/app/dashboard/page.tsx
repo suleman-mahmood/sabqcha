@@ -6,21 +6,17 @@ import { storage } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Upload } from "lucide-react";
-import {useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 
-interface MCQ {
-  question: string;
-  options: string[];
-  answer: string;
+interface Lecture {
+  doc_id: string;
+  title: string;
 }
 
 export default function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [lectures, setLectures] = useState<string[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [mcqs, setMcqs] = useState<MCQ[]>([]);
-  const [loadingMCQs, setLoadingMCQs] = useState(false);
+  const [lectures, setLectures] = useState<Lecture[]>([]);
   const router = useRouter();
 
   // 🔹 Fetch all available lectures from backend
@@ -29,8 +25,8 @@ export default function Dashboard() {
       try {
         const res = await fetch("/api/transcribe/list");
         const data = await res.json();
-        // ✅ Fix: backend returns "doc_ids"
-        if (data.doc_ids) setLectures(data.doc_ids);
+        // ✅ New format: { data: [ { doc_id, title } ] }
+        if (data.data) setLectures(data.data);
       } catch (err) {
         console.error("Failed to fetch lectures:", err);
       }
@@ -40,6 +36,12 @@ export default function Dashboard() {
 
   // 🔹 Handle file upload + trigger transcription
   const handleUpload = async (file: File) => {
+    const title = window.prompt("Enter a title for this lecture:");
+    if (!title) {
+      alert("Upload cancelled: title is required.");
+      return;
+    }
+
     setUploading(true);
     const storageRef = ref(storage, `lecture/${file.name}`);
     const uploadTask = uploadBytesResumable(storageRef, file);
@@ -62,7 +64,7 @@ export default function Dashboard() {
         const res = await fetch(`/api/transcribe`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ filePath: downloadURL }),
+          body: JSON.stringify({ filePath: downloadURL, title }),
         });
 
         const data = await res.json();
@@ -71,27 +73,11 @@ export default function Dashboard() {
         // Refresh lecture list
         const listRes = await fetch("/api/transcribe/list");
         const listData = await listRes.json();
-        if (listData.doc_ids) setLectures(listData.doc_ids);
+        if (listData.data) setLectures(listData.data);
 
         setUploading(false);
       }
     );
-  };
-
-  // 🔹 Fetch MCQs for a selected transcription
-  const handleSelectLecture = async (id: string) => {
-    setSelectedId(id);
-    setLoadingMCQs(true);
-    setMcqs([]);
-    try {
-      const res = await fetch(`/api/mcqs?transcription_id=${id}`);
-      const data = await res.json();
-      if (data.mcqs) setMcqs(data.mcqs);
-    } catch (err) {
-      console.error("Failed to load MCQs:", err);
-    } finally {
-      setLoadingMCQs(false);
-    }
   };
 
   return (
@@ -111,12 +97,16 @@ export default function Dashboard() {
                   type="file"
                   accept="audio/*"
                   hidden
-                  onChange={(e) => e.target.files && handleUpload(e.target.files[0])}
+                  onChange={(e) =>
+                    e.target.files && handleUpload(e.target.files[0])
+                  }
                 />
               </label>
             </Button>
             {uploading && (
-              <p className="text-sm text-gray-600 mt-2">Uploading... {progress}%</p>
+              <p className="text-sm text-gray-600 mt-2">
+                Uploading... {progress}%
+              </p>
             )}
           </CardContent>
         </Card>
@@ -130,59 +120,37 @@ export default function Dashboard() {
               <p className="text-gray-500 text-sm">No lectures found yet.</p>
             ) : (
               <div className="space-y-4">
-                {/* Get Started section */}
                 <div className="p-4 rounded-lg bg-gray-100 border text-center">
                   <p className="text-gray-700 font-medium mb-2">
                     🎧 Get Started — Select a lecture below to view its MCQs
                   </p>
                 </div>
 
-                {/* Lecture cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {lectures.map((id) => (
-                  <Card
-                    key={id}
-                    className="cursor-pointer transition-all hover:shadow-lg"
-                    onClick={() => router.push(`/mcqs/${id}`)}
-                  >
-                    <CardContent className="p-4 text-center">
-                      <p className="font-medium text-gray-800 truncate">{id}</p>
-                      <Button className="mt-3 w-full" variant="outline">
-                        View MCQs
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+                  {lectures.map((lecture) => (
+                    <Card
+                      key={lecture.doc_id}
+                      className="cursor-pointer transition-all hover:shadow-lg"
+                      onClick={() => router.push(`/mcqs/${lecture.doc_id}`)}
+                    >
+                      <CardContent className="p-4 text-center">
+                        <p className="font-semibold text-gray-900 truncate">
+                          {lecture.title || "Untitled Lecture"}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate mt-1">
+                          ID: {lecture.doc_id}
+                        </p>
+                        <Button className="mt-3 w-full" variant="outline">
+                          View MCQs
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               </div>
             )}
           </CardContent>
         </Card>
-
-        {/* 🔸 MCQs Display */}
-        {loadingMCQs && <p className="text-center text-gray-600">Loading MCQs...</p>}
-        {!loadingMCQs && mcqs.length > 0 && (
-          <Card className="p-4">
-            <CardContent>
-              <h2 className="text-lg font-semibold mb-4">
-                MCQs for {selectedId}
-              </h2>
-              {mcqs.map((q, i) => (
-                <div key={i} className="mb-5">
-                  <p className="font-medium">{i + 1}. {q.question}</p>
-                  <ul className="list-disc ml-5 mt-2">
-                    {q.options.map((opt, idx) => (
-                      <li key={idx}>{opt}</li>
-                    ))}
-                  </ul>
-                  <p className="text-green-700 mt-2">
-                    ✅ Answer: {q.answer}
-                  </p>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );
