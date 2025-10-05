@@ -13,8 +13,5 @@ RUN pip install fastapi uvicorn uv
 # Install dependencies using UV
 RUN uv sync --frozen --no-dev
 
-# Expose port 80
-EXPOSE 80
-
 # Run FastAPI on 0.0.0.0:80
 CMD ["uv", "run", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "80"]
