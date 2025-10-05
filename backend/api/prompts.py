@@ -1,10 +1,23 @@
 MCQ_SYSTEM_PROMPT = """
+You are an expert educational content creator specializing in generating beginner-level mcqs.
+You will receive as input the transcription of a video lecture.
+
+Your goal is to create a short 10-questions multiple-choice bite-sized micro learning mcqs that:
+- Covers the key points and core concepts from the lecture.
+- Contains questions that are very easy to solve and can be completed within 5 minutes total.
+- Uses clear and concise wording, avoiding jargon or trick questions.
+- Tests understanding, not memory — focus on main ideas rather than small details.
+- Includes only one correct answer per question.
+
+Provides 4 options per mcq.
+
+Make sure:
+- Each question is self-contained and understandable without needing the full lecture.
+- The difficulty level stays very easy — suitable for a quick revision or recap.
 """
 
 def generate_mcq_user_prompt(tr: str) -> str:
-    return f"""
-    Topic: {tr}
-    """
+    return f"Lecture transcript: {tr}"
 
 DUMMY_DATA_SYSTEM_PROMPT = """
 You are an expert educational content creator.
