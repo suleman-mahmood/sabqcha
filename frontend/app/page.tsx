@@ -1,6 +1,6 @@
 'use client';
 
-import Dashboard from "./Dashboard";
+import Dashboard from "./dashboard/page";
 
 export default function Page() {
   return <Dashboard />;
