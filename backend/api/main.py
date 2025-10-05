@@ -4,7 +4,7 @@ import sys
 from fastapi import FastAPI
 from dotenv import load_dotenv
 from loguru import logger
-from firebase_admin import credentials
+from firebase_admin import credentials, storage
 from api.routes import transcribe_routes
 
 load_dotenv()
@@ -24,7 +24,10 @@ logger.add(
 
 # Setup Firebase
 cred = credentials.Certificate("firebase_credentials.json")
-firebase_admin.initialize_app(cred)
+firebase_admin.initialize_app(cred, {
+    "storageBucket": "sabqcha.firebasestorage.app"
+})
+bucket = storage.bucket()
 
 # Setup FastAPI
 app = FastAPI()
