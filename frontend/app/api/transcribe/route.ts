@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    const { filePath, title } = await req.json();
+    const { fileName, title } = await req.json();
 
-    if (!filePath || !title) {
+    if (!fileName || !title) {
       return NextResponse.json(
-        { error: "Missing filePath or title" },
+        { error: "Missing fileName or title" },
         { status: 400 }
       );
     }
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const res = await fetch(`${baseUrl}/transcribe`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ file_path: filePath, title }),
+      body: JSON.stringify({ file_path: fileName, title }),
     });
 
     if (!res.ok) {

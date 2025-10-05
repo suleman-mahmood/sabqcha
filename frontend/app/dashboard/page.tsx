@@ -64,7 +64,7 @@ export default function Dashboard() {
         const res = await fetch(`/api/transcribe`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ filePath: downloadURL, title }),
+          body: JSON.stringify({ fileName: `lecture/${file.name}`, title }),
         });
 
         const data = await res.json();
