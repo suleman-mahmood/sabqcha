@@ -1,4 +1,5 @@
 import os
+from fastapi.responses import JSONResponse
 import requests
 import tempfile
 
@@ -85,7 +86,7 @@ async def get_all_transcription_docs():
     from api.main import db  # Circular import bs
 
     docs = [doc.id for doc in db.collection("transcription").stream()]
-    return Response({"doc_ids": docs})
+    return JSONResponse(content={"doc_ids": docs})
 
 @router.get("/mcqs/{transcription_id}")
 async def get_transcription_mcqs(transcription_id: str):
@@ -95,4 +96,4 @@ async def get_transcription_mcqs(transcription_id: str):
     trans = TranscriptionDoc.model_validate(doc.to_dict())
 
     res = {"mcqs": [m.model_dump(mode="json") for m in trans.mcqs]}
-    return Response(res)
+    return JSONResponse(content=res)
