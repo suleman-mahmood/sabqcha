@@ -4,7 +4,7 @@ import sys
 from fastapi import FastAPI
 from dotenv import load_dotenv
 from loguru import logger
-from firebase_admin import credentials, storage
+from firebase_admin import credentials, storage, firestore
 from api.routes import transcribe_routes
 
 load_dotenv()
@@ -28,6 +28,7 @@ firebase_admin.initialize_app(cred, {
     "storageBucket": "sabqcha.firebasestorage.app"
 })
 bucket = storage.bucket()
+db = firestore.client()
 
 # Setup FastAPI
 app = FastAPI()

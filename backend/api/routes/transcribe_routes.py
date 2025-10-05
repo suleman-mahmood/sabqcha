@@ -6,6 +6,8 @@ from fastapi import APIRouter, Response
 from loguru import logger
 from pydantic import BaseModel
 
+from api.models.transcription_models import TranscriptionDoc
+
 
 router = APIRouter(prefix="/transcribe")
 
@@ -13,14 +15,14 @@ UPLIFT_BASE_URL = "https://api.upliftai.org/v1"
 UPLIFT_API_KEY = os.getenv("UPLIFT_API_KEY")
 
 class TranscribeBody(BaseModel):
-    file_url: str
+    file_path: str
 
 @router.post("")
 async def transcribe(body: TranscribeBody):
-    from api.main import bucket # Circular import bs
+    from api.main import bucket, db # Circular import bs
 
     with tempfile.NamedTemporaryFile(suffix=".mp3") as temp_file:
-        blob = bucket.blob(body.file_url)
+        blob = bucket.blob(body.file_path)
         blob.download_to_filename(temp_file.name)
 
         files = {
@@ -44,3 +46,11 @@ async def transcribe(body: TranscribeBody):
     if response.status_code != 200:
         logger.error("Uplift API Failed")
         return Response("Uplift API Failed", status_code=400)
+
+    if "transcript" not in res_json:
+        logger.error("No transcribtions in response")
+        return Response("Uplift API Failed", status_code=400)
+
+
+    doc = TranscriptionDoc(audio_file_path=body.file_path, transcribed_content=res_json["transcript"])
+    db.collection("transcription").add(doc.model_dump())
