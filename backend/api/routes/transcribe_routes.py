@@ -18,6 +18,7 @@ UPLIFT_API_KEY = os.getenv("UPLIFT_API_KEY")
 
 class TranscribeBody(BaseModel):
     file_path: str
+    title: str
 
 @router.post("")
 async def transcribe(body: TranscribeBody):
@@ -55,7 +56,7 @@ async def transcribe(body: TranscribeBody):
 
     transcript = res_json["transcript"]
 
-    doc = TranscriptionDoc(audio_file_path=body.file_path, transcribed_content=transcript)
+    doc = TranscriptionDoc(audio_file_path=body.file_path, transcribed_content=transcript, title=body.title)
     _, doc_ref = db.collection("transcription").add(doc.model_dump())
     doc_id: str = doc_ref.id
 
@@ -74,19 +75,25 @@ async def transcribe(body: TranscribeBody):
         return Response("Invalid response from OpenAI", status_code=400)
 
     doc_ref = db.collection("transcription").document(doc_id)
-    doc_ref.update({"llm_raw_response": llm_res})
 
     # Save these mcqs
     doc_ref.update({
         "mcqs": [m.model_dump(mode="json") for m in llm_res.mcqs]
     })
 
+class TranscriptionListEntryResponse(BaseModel):
+    doc_id: str
+    title: str
+
 @router.get("/list")
 async def get_all_transcription_docs():
     from api.main import db  # Circular import bs
 
-    docs = [doc.id for doc in db.collection("transcription").stream()]
-    return JSONResponse(content={"doc_ids": docs})
+    res = [
+        TranscriptionListEntryResponse(doc_id=doc.id, title=doc.to_dict().get("title", "No Title")).model_dump(mode="json")
+        for doc in db.collection("transcription").stream()
+    ]
+    return JSONResponse(content={"data": res})
 
 @router.get("/mcqs/{transcription_id}")
 async def get_transcription_mcqs(transcription_id: str):

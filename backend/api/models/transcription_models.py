@@ -7,6 +7,7 @@ class LlmMcq(BaseModel):
     answer: str
 
 class TranscriptionDoc(BaseModel):
+    title: str | None = None
     audio_file_path: str
     transcribed_content: str
     mcqs: list[LlmMcq] = Field(default_factory=list)
