@@ -102,7 +102,7 @@ async def get_transcription_mcqs(transcription_id: str):
     doc = db.collection("transcription").document(transcription_id).get()
     trans = TranscriptionDoc.model_validate(doc.to_dict())
 
-    res = {"mcqs": [m.model_dump(mode="json") for m in trans.mcqs]}
+    res = {"mcqs": [m.model_dump(mode="json") for m in trans.mcqs], "title": trans.title}
     return JSONResponse(content=res)
 
 @router.get("/create-demo-mcqs")
