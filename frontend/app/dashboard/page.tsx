@@ -154,19 +154,25 @@ export default function Dashboard() {
         <Card className="p-6 text-center mb-8">
           <CardContent>
             <Upload className="mx-auto mb-3" />
-            <Button asChild disabled={uploading}>
-              <label className="cursor-pointer">
-                {uploading ? "Uploading..." : "Select Audio File"}
-                <input
-                  type="file"
-                  accept="audio/*"
-                  hidden
-                  onChange={(e) =>
-                    e.target.files && handleUpload(e.target.files[0])
-                  }
-                />
-              </label>
-            </Button>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Button asChild disabled={uploading}>
+                <label className="cursor-pointer">
+                  {uploading ? "Uploading..." : "Select Audio File"}
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    hidden
+                    onChange={(e) =>
+                      e.target.files && handleUpload(e.target.files[0])
+                    }
+                  />
+                </label>
+              </Button>
+
+              <Button variant="outline" onClick={() => router.push("/leaderboards")}>Leaderboards</Button>
+            </div>
+
             {uploading && (
               <p className="text-sm text-muted-foreground mt-2">
                 Uploading... {progress}%

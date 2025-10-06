@@ -21,3 +21,6 @@ class LlmMcqResponse(BaseModel):
 class UserDoc(BaseModel):
     display_name: str
     score: int
+
+class UserDocWithId(UserDoc):
+    user_id: str
