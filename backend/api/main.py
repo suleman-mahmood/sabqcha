@@ -1,6 +1,7 @@
 import os
 import firebase_admin
 import sys
+import psycopg
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -56,3 +57,21 @@ app.include_router(leaderboard_routes.router)
 @app.get("/health-check")
 async def health_check():
     return "Hii there!"
+
+@app.get("/health-check-pg")
+async def health_check_pg():
+    dbname = os.getenv("SABQCHA_PG_DB")
+    user = os.getenv("SABQCHA_PG_USER")
+    password = os.getenv("SABQCHA_PG_PASSWORD")
+    host = os.getenv("SABQCHA_PG_HOST")
+    port = os.getenv("SABQCHA_PG_PORT")
+
+    assert dbname and user and password and host and port
+
+    with psycopg.connect(f"dbname={dbname} user={user} password={password} host={host} port={port}") as conn:
+        with conn.cursor() as cur:
+            cur.execute("select version();")
+            v = cur.fetchone()
+            logger.info("PG Version: {}", v)
+
+    return f"PG works!"
