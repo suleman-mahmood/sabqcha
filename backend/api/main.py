@@ -1,9 +1,10 @@
 import os
 import firebase_admin
 import sys
-import psycopg
 
-from fastapi import FastAPI
+from psycopg import Cursor
+
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from loguru import logger
@@ -13,6 +14,7 @@ from openai import OpenAI
 from api.routes import transcribe_routes
 from api.routes import task_routes
 from api.routes import leaderboard_routes
+from api.dependencies import get_cursor
 
 
 # Setup logger
@@ -59,19 +61,9 @@ async def health_check():
     return "Hii there!"
 
 @app.get("/health-check-pg")
-async def health_check_pg():
-    dbname = os.getenv("SABQCHA_PG_DB")
-    user = os.getenv("SABQCHA_PG_USER")
-    password = os.getenv("SABQCHA_PG_PASSWORD")
-    host = os.getenv("SABQCHA_PG_HOST")
-    port = os.getenv("SABQCHA_PG_PORT")
-
-    assert dbname and user and password and host and port
-
-    with psycopg.connect(f"dbname={dbname} user={user} password={password} host={host} port={port}") as conn:
-        with conn.cursor() as cur:
-            cur.execute("select version();")
-            v = cur.fetchone()
-            logger.info("PG Version: {}", v)
+async def health_check_pg(cur: Cursor = Depends(get_cursor)):
+    cur.execute("select version();")
+    v = cur.fetchone()
+    logger.info("PG Version: {}", v)
 
     return f"PG works!"
