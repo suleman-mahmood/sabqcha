@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useUser } from "@/components/UserProvider";
 
 interface MCQ {
   question: string;
@@ -37,10 +38,13 @@ export default function MCQPage() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   // Fetch MCQs
+  const { user } = useUser();
+
   useEffect(() => {
     const fetchMCQs = async () => {
+      if (!user) return;
       try {
-        const res = await fetch(`/api/mcqs?transcription_id=${id}`);
+        const res = await fetch(`/api/mcqs`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transcription_id: id, user_id: user.userId }) });
         const data = await res.json();
         setTitle(data.title);
         if (data.mcqs) setMcqs(data.mcqs);
@@ -52,7 +56,7 @@ export default function MCQPage() {
     };
 
     if (id) fetchMCQs();
-  }, [id]);
+  }, [id, user]);
 
   // Start timer when quiz is ready
   useEffect(() => {

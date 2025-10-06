@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function POST(req: Request) {
   try {
+    const body = await req.json();
+    const userId = body?.user_id as string | undefined;
+    // we currently don't use userId server-side, but accept it in the body
+
     const baseUrl = process.env.NEXT_PUBLIC_TRANSCRIBE_API_BASE!;
     const res = await fetch(`${baseUrl}/transcribe/list`);
     const data = await res.json();

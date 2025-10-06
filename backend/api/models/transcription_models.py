@@ -7,6 +7,7 @@ class LlmMcq(BaseModel):
     answer: str
 
 class TranscriptionDoc(BaseModel):
+    user_id: str | None = None
     title: str | None = None
     audio_file_path: str
     transcribed_content: str

@@ -14,15 +14,20 @@ from api.prompts import DUMMY_DATA_SYSTEM_PROMPT, MCQ_SYSTEM_PROMPT, generate_du
 router = APIRouter(prefix="/transcribe")
 
 UPLIFT_BASE_URL = "https://api.upliftai.org/v1"
-UPLIFT_API_KEY = os.getenv("UPLIFT_API_KEY")
 
 class TranscribeBody(BaseModel):
     file_path: str
     title: str
+    user_id: str
 
 @router.post("")
 async def transcribe(body: TranscribeBody):
     from api.main import bucket, db, openai_client # Circular import bs
+
+    UPLIFT_API_KEY = os.getenv("UPLIFT_API_KEY")
+    if not UPLIFT_API_KEY:
+        logger.info("Api key: {}", UPLIFT_API_KEY)
+        return Response("No Uplift API Key Found", status_code=400)
 
     with tempfile.NamedTemporaryFile(suffix=".mp3") as temp_file:
         blob = bucket.blob(body.file_path)
@@ -56,7 +61,12 @@ async def transcribe(body: TranscribeBody):
 
     transcript = res_json["transcript"]
 
-    doc = TranscriptionDoc(audio_file_path=body.file_path, transcribed_content=transcript, title=body.title)
+    doc = TranscriptionDoc(
+        audio_file_path=body.file_path,
+        transcribed_content=transcript,
+        title=body.title,
+        user_id=body.user_id
+    )
     _, doc_ref = db.collection("transcription").add(doc.model_dump())
     doc_id: str = doc_ref.id
 
@@ -116,11 +126,11 @@ async def create_demo_mcqs():
         # "Waves and Sound",
         # "Quadratic Equations and Functions"
         # "Trigonometric Identities and Applications"
-        "Distributed Systems",
-        "Computer Graphics",
-        "Computer Vision",
-        "Business Communication",
-        "Psychology",
+        # "Distributed Systems",
+        # "Computer Graphics",
+        # "Computer Vision",
+        # "Business Communication",
+        # "Psychology",
     ]
 
     for topic in topics:
@@ -139,6 +149,8 @@ async def create_demo_mcqs():
             return Response("Invalid response from OpenAI", status_code=400)
 
         doc = TranscriptionDoc(
+            user_id="system",
+            title=topic,
             audio_file_path="dummy.mp3",
             transcribed_content="dummy-data",
             mcqs=llm_res.mcqs,

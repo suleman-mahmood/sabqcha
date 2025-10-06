@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useUser } from "@/components/UserProvider";
 
 interface Lecture {
   doc_id: string;
@@ -64,13 +65,19 @@ export default function Dashboard() {
   const [lectures, setLectures] = useState<Lecture[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { user } = useUser();
 
   // 🔹 Fetch all available lectures from backend
   useEffect(() => {
     const fetchLectures = async () => {
+      if (!user) return;
       setLoading(true);
       try {
-        const res = await fetch("/api/transcribe/list");
+        const res = await fetch("/api/transcribe/list", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: user.userId }),
+        });
         const data = await res.json();
         // ✅ New format: { data: [ { doc_id, title } ] }
         if (data.data) setLectures(data.data);
@@ -81,7 +88,7 @@ export default function Dashboard() {
       }
     };
     fetchLectures();
-  }, []);
+  }, [user]);
 
   // 🔹 Handle file upload + trigger transcription
   const handleUpload = async (file: File) => {
@@ -113,14 +120,18 @@ export default function Dashboard() {
         const res = await fetch(`/api/transcribe`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fileName: `lecture/${file.name}`, title }),
+          body: JSON.stringify({ fileName: `lecture/${file.name}`, title, user_id: user?.userId ?? "" }),
         });
 
         const data = await res.json();
         console.log("Transcription started:", data);
 
         // Refresh lecture list
-        const listRes = await fetch("/api/transcribe/list");
+        const listRes = await fetch("/api/transcribe/list", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: user?.userId ?? "" }),
+        });
         const listData = await listRes.json();
         if (listData.data) setLectures(listData.data);
 
@@ -132,7 +143,10 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-5xl mx-auto">
-          <div className="flex justify-end mb-4"><ThemeToggle /></div>
+          <div className="flex justify-end items-center mb-4">
+            <span className="mr-3 text-sm text-muted-foreground">Hi, {user?.displayName}</span>
+            <ThemeToggle />
+          </div>
         {/* 🔹 Title */}
         <h1 className="text-3xl font-bold text-center mb-8">Dashboard</h1>
 
