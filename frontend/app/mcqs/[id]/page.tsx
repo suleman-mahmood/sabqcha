@@ -109,7 +109,7 @@ export default function MCQPage() {
     }
   };
 
-  // Compute final stats
+  // Compute final stats and submit results to backend (fire-and-forget, no UI feedback)
   const finishQuiz = () => {
     const attemptedKeys = Object.keys(selectedAnswers).map((k) => Number(k));
     const attempted = attemptedKeys.length;
@@ -117,6 +117,29 @@ export default function MCQPage() {
     const incorrect = attempted - correct;
     const skipped = mcqs.length - attempted;
     const timeSpentSeconds = startTime ? Math.round((Date.now() - startTime) / 1000) : elapsedSeconds;
+
+    // prepare mcq payload: each item has answer (string) and did_skip (bool)
+    const mcqResponses = mcqs.map((_, idx) => {
+      const answer = selectedAnswers[idx] ?? "";
+      const did_skip = !(idx in selectedAnswers);
+      return { answer, did_skip };
+    });
+
+    // fire-and-forget submit to server endpoint; do not block UI
+    if (id && user) {
+      fetch(`/api/mcqs/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transcription_id: id,
+          user_id: user.userId,
+          display_name: user.displayName,
+          mcqs: mcqResponses,
+        }),
+      }).catch((err) => {
+        console.error("Failed to submit MCQs to backend:", err);
+      });
+    }
 
     setStats({ attempted, correct, incorrect, skipped, timeSpentSeconds });
     setFinished(true);

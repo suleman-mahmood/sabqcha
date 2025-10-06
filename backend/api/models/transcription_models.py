@@ -16,3 +16,8 @@ class TranscriptionDoc(BaseModel):
 
 class LlmMcqResponse(BaseModel):
     mcqs: list[LlmMcq]
+
+
+class UserDoc(BaseModel):
+    display_name: str
+    score: int

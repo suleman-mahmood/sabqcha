@@ -8,8 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from loguru import logger
 from firebase_admin import credentials, storage, firestore
-from api.routes import transcribe_routes
 from openai import OpenAI
+
+from api.routes import transcribe_routes
+from api.routes import task_routes
+
 
 load_dotenv()
 
@@ -49,6 +52,7 @@ app.add_middleware(
 )
 
 app.include_router(transcribe_routes.router)
+app.include_router(task_routes.router)
 
 @app.get("/health-check")
 async def health_check():
