@@ -14,20 +14,17 @@ from api.prompts import DUMMY_DATA_SYSTEM_PROMPT, MCQ_SYSTEM_PROMPT, generate_du
 router = APIRouter(prefix="/transcribe")
 
 UPLIFT_BASE_URL = "https://api.upliftai.org/v1"
+UPLIFT_API_KEY = os.getenv("UPLIFT_API_KEY")
 
 class TranscribeBody(BaseModel):
     file_path: str
     title: str
     user_id: str
 
+
 @router.post("")
 async def transcribe(body: TranscribeBody):
     from api.main import bucket, db, openai_client # Circular import bs
-
-    UPLIFT_API_KEY = os.getenv("UPLIFT_API_KEY")
-    if not UPLIFT_API_KEY:
-        logger.info("Api key: {}", UPLIFT_API_KEY)
-        return Response("No Uplift API Key Found", status_code=400)
 
     with tempfile.NamedTemporaryFile(suffix=".mp3") as temp_file:
         blob = bucket.blob(body.file_path)

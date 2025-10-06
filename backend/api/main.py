@@ -5,7 +5,6 @@ import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from dotenv import load_dotenv
 from loguru import logger
 from firebase_admin import credentials, storage, firestore
 from openai import OpenAI
@@ -14,8 +13,6 @@ from api.routes import transcribe_routes
 from api.routes import task_routes
 from api.routes import leaderboard_routes
 
-
-load_dotenv()
 
 # Setup logger
 logger.remove()
