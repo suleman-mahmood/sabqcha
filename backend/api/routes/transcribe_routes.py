@@ -1,14 +1,18 @@
 import os
 from fastapi.responses import JSONResponse
+from google.cloud.firestore import Client
+from google.cloud.storage import Bucket
+from openai import OpenAI
 import requests
 import tempfile
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Depends, Response
 from loguru import logger
 from pydantic import BaseModel
 
 from api.models.transcription_models import LlmMcqResponse, TranscriptionDoc
 from api.prompts import DUMMY_DATA_SYSTEM_PROMPT, MCQ_SYSTEM_PROMPT, generate_dummy_data_user_prompt, generate_mcq_user_prompt
+from api.dependencies import get_bucket, get_firestore, get_openai_client
 
 
 router = APIRouter(prefix="/transcribe")
@@ -23,9 +27,12 @@ class TranscribeBody(BaseModel):
 
 
 @router.post("")
-async def transcribe(body: TranscribeBody):
-    from api.main import bucket, db, openai_client # Circular import bs
-
+async def transcribe(
+    body: TranscribeBody,
+    db: Client = Depends(get_firestore),
+    openai_client: OpenAI = Depends(get_openai_client),
+    bucket: Bucket = Depends(get_bucket),
+):
     with tempfile.NamedTemporaryFile(suffix=".mp3") as temp_file:
         blob = bucket.blob(body.file_path)
         blob.download_to_filename(temp_file.name)
@@ -93,9 +100,7 @@ class TranscriptionListEntryResponse(BaseModel):
     title: str
 
 @router.get("/list")
-async def get_all_transcription_docs():
-    from api.main import db  # Circular import bs
-
+async def get_all_transcription_docs(db: Client = Depends(get_firestore)):
     res = [
         TranscriptionListEntryResponse(doc_id=doc.id, title=doc.to_dict().get("title", "No Title")).model_dump(mode="json")
         for doc in db.collection("transcription").stream()
@@ -103,9 +108,7 @@ async def get_all_transcription_docs():
     return JSONResponse(content={"data": res})
 
 @router.get("/mcqs/{transcription_id}")
-async def get_transcription_mcqs(transcription_id: str):
-    from api.main import db  # Circular import bs
-
+async def get_transcription_mcqs(transcription_id: str, db: Client = Depends(get_firestore)):
     doc = db.collection("transcription").document(transcription_id).get()
     trans = TranscriptionDoc.model_validate(doc.to_dict())
 
@@ -113,10 +116,7 @@ async def get_transcription_mcqs(transcription_id: str):
     return JSONResponse(content=res)
 
 @router.get("/create-demo-mcqs")
-async def create_demo_mcqs():
-    from api.main import db, openai_client  # Circular import bs
-
-
+async def create_demo_mcqs(db: Client = Depends(get_firestore), openai_client: OpenAI = Depends(get_openai_client)):
     topics = [
         # "Newton's law of motion",
         # "Work, Engergy, Power",

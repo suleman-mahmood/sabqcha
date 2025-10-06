@@ -1,9 +1,9 @@
-from fastapi import APIRouter
-from google.cloud.firestore import Increment
-from loguru import logger
+from fastapi import APIRouter, Depends
+from google.cloud.firestore import Client, Increment
 from pydantic import BaseModel
 
 from api.models.transcription_models import TranscriptionDoc, UserDoc
+from api.dependencies import get_firestore
 
 
 router = APIRouter(prefix="/task")
@@ -20,11 +20,7 @@ class SubmitTaskBody(BaseModel):
     mcqs: list[McqAttempted]
 
 @router.post("")
-async def submit_task(body: SubmitTaskBody):
-    from api.main import db  # Circular import bs
-
-    logger.info("Got data: {}", body.model_dump(mode="json"))
-
+async def submit_task(body: SubmitTaskBody, db: Client = Depends(get_firestore)):
     doc = db.collection("transcription").document(body.transcription_id).get()
     trans = TranscriptionDoc.model_validate(doc.to_dict())
 

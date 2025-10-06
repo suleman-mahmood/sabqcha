@@ -1,16 +1,16 @@
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
+from google.cloud.firestore import Client
 
 from api.models.transcription_models import UserDocWithId
+from api.dependencies import get_firestore
 
 
 router = APIRouter(prefix="/leaderboard")
 
 @router.get("")
-async def get_leaderboard():
-    from api.main import db  # Circular import bs
-
+async def get_leaderboard(db: Client = Depends(get_firestore)):
     user_docs = [
         UserDocWithId.model_validate({**doc.to_dict(), "user_id": doc.id})
         for doc in db.collection("user").stream()

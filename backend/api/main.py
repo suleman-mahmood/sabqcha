@@ -1,5 +1,3 @@
-import os
-import firebase_admin
 import sys
 
 from psycopg import Cursor
@@ -8,8 +6,6 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from loguru import logger
-from firebase_admin import credentials, storage, firestore
-from openai import OpenAI
 
 from api.routes import transcribe_routes
 from api.routes import task_routes
@@ -30,16 +26,6 @@ logger.add(
            "<level>{message}</level>"
 )
 
-# Setup Firebase
-cred = credentials.Certificate("firebase_credentials.json")
-firebase_admin.initialize_app(cred, {
-    "storageBucket": "sabqcha.firebasestorage.app"
-})
-bucket = storage.bucket()
-db = firestore.client()
-
-# Setup OpenAI
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Setup FastAPI
 app = FastAPI()
