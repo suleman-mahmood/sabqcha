@@ -9,6 +9,7 @@
 - **Single Test (Jest)**: `npx jest path/to/file.test.ts -t 'test name'`
 - **Single Test (Vitest)**: `npx vitest run path/to/file.test.ts -t 'test name'`
 **Code Style**
+- **Colors / Theming**: Don't hardcode colors, instead use shadcn style variables defined in globals.css
 - **Formatting**: Use `prettier` conventions; run `npx prettier --write` before commits.
 - **Imports**: Group builtin → external → absolute/alias → relative; keep one import per module and sort.
 - **Types**: Prefer explicit types on public APIs; use `unknown` + guards for external inputs.

@@ -118,10 +118,10 @@ export default function MCQPage() {
     setFinished(true);
   };
 
-  if (loading) return <p className="text-center text-gray-600 mt-10">Loading MCQs...</p>;
+  if (loading) return <p className="text-center text-muted-foreground mt-10">Loading MCQs...</p>;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">MCQs for {title}</h1>
@@ -131,7 +131,7 @@ export default function MCQPage() {
         </div>
 
         {mcqs.length === 0 ? (
-          <p className="text-center text-gray-500">No MCQs found for this lecture.</p>
+          <p className="text-center text-muted-foreground">No MCQs found for this lecture.</p>
         ) : finished ? (
           // Final stats view
           <Card className="p-4 mt-6">
@@ -142,9 +142,9 @@ export default function MCQPage() {
                 {/* Accuracy circle */}
                 <div className="flex-shrink-0">
                   <div
-                    className="w-36 h-36 rounded-full flex items-center justify-center text-white text-3xl font-bold"
+                    className="w-36 h-36 rounded-full flex items-center justify-center text-card-foreground text-3xl font-bold"
                     style={{
-                      background: `conic-gradient(#059669 ${( (stats?.correct ?? 0) / mcqs.length ) * 360}deg, #e5e7eb 0deg)`,
+                      background: `conic-gradient(var(--chart-1) ${((stats?.correct ?? 0) / mcqs.length) * 360}deg, var(--muted) 0deg)`,
                     }}
                   >
                     <div className="text-center">
@@ -156,33 +156,33 @@ export default function MCQPage() {
 
                 {/* Stat grid */}
                 <div className="flex-1 grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-lg bg-green-50">
-                    <div className="text-sm text-gray-500">Correct</div>
-                    <div className="text-2xl font-bold text-green-700">{stats?.correct}</div>
+                  <div className="p-4 rounded-lg bg-card">
+                    <div className="text-sm text-muted-foreground">Correct</div>
+                    <div className="text-2xl font-bold text-primary">{stats?.correct}</div>
                   </div>
 
-                  <div className="p-4 rounded-lg bg-red-50">
-                    <div className="text-sm text-gray-500">Incorrect</div>
-                    <div className="text-2xl font-bold text-red-600">{stats?.incorrect}</div>
+                  <div className="p-4 rounded-lg bg-card">
+                    <div className="text-sm text-muted-foreground">Incorrect</div>
+                    <div className="text-2xl font-bold text-destructive">{stats?.incorrect}</div>
                   </div>
 
-                  <div className="p-4 rounded-lg bg-gray-50">
-                    <div className="text-sm text-gray-500">Skipped</div>
-                    <div className="text-2xl font-bold text-gray-700">{stats?.skipped}</div>
+                  <div className="p-4 rounded-lg bg-card">
+                    <div className="text-sm text-muted-foreground">Skipped</div>
+                    <div className="text-2xl font-bold text-muted-foreground">{stats?.skipped}</div>
                   </div>
 
-                  <div className="p-4 rounded-lg bg-blue-50">
-                    <div className="text-sm text-gray-500">Attempted</div>
-                    <div className="text-2xl font-bold text-blue-700">{stats?.attempted}</div>
+                  <div className="p-4 rounded-lg bg-card">
+                    <div className="text-sm text-muted-foreground">Attempted</div>
+                    <div className="text-2xl font-bold text-secondary">{stats?.attempted}</div>
                   </div>
 
-                  <div className="p-4 rounded-lg bg-indigo-50">
-                    <div className="text-sm text-gray-500">Time</div>
-                    <div className="text-2xl font-bold text-indigo-700">{formatTime(stats?.timeSpentSeconds ?? 0)}</div>
+                  <div className="p-4 rounded-lg bg-card">
+                    <div className="text-sm text-muted-foreground">Time</div>
+                    <div className="text-2xl font-bold text-accent">{formatTime(stats?.timeSpentSeconds ?? 0)}</div>
                   </div>
 
-                  <div className="p-4 rounded-lg bg-gray-100">
-                    <div className="text-sm text-gray-500">Total</div>
+                  <div className="p-4 rounded-lg bg-card">
+                    <div className="text-sm text-muted-foreground">Total</div>
                     <div className="text-2xl font-bold text-gray-900">{mcqs.length}</div>
                   </div>
                 </div>
@@ -216,17 +216,17 @@ export default function MCQPage() {
             {/* Progress */}
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-muted-foreground">
                   Question {currentIndex + 1} / {mcqs.length}
                 </p>
-                <div className="text-sm text-gray-600 flex items-center gap-4">
+                <div className="text-sm text-muted-foreground flex items-center gap-4">
                   <span>Attempted: {Object.keys(selectedAnswers).length}</span>
                   <span>Time: {formatTime(elapsedSeconds)}</span>
                 </div>
               </div>
-              <div className="w-full h-2 bg-gray-200 rounded">
+              <div className="w-full h-2 bg-muted rounded">
                 <div
-                  className="h-2 bg-blue-600 rounded"
+                  className="h-2 bg-primary rounded"
                   style={{ width: `${((currentIndex + 1) / mcqs.length) * 100}%` }}
                 />
               </div>
@@ -266,7 +266,7 @@ export default function MCQPage() {
                 {selectedAnswers[currentIndex] && (
                   <p
                     className={`mt-3 text-sm ${
-                      results[currentIndex] ? "text-green-600" : "text-red-600"
+                      results[currentIndex] ? "text-primary" : "text-destructive"
                     }`}
                   >
                     {results[currentIndex]

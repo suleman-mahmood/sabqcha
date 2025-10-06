@@ -14,6 +14,50 @@ interface Lecture {
   title: string;
 }
 
+function ThemeToggle() {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("theme");
+      if (stored) {
+        if (stored === "dark") {
+          document.documentElement.classList.add("dark");
+          setIsDark(true);
+        } else {
+          document.documentElement.classList.remove("dark");
+          setIsDark(false);
+        }
+      } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        document.documentElement.classList.add("dark");
+        setIsDark(true);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  const toggle = () => {
+    const root = document.documentElement;
+    const next = !root.classList.contains("dark");
+    if (next) {
+      root.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+      setIsDark(true);
+    } else {
+      root.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+      setIsDark(false);
+    }
+  };
+
+  return (
+    <Button variant="ghost" onClick={toggle}>
+      {isDark ? "🌙 Dark" : "🌤️ Light"}
+    </Button>
+  );
+}
+
 export default function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -86,8 +130,9 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-5xl mx-auto">
+          <div className="flex justify-end mb-4"><ThemeToggle /></div>
         {/* 🔹 Title */}
         <h1 className="text-3xl font-bold text-center mb-8">Dashboard</h1>
 
@@ -109,7 +154,7 @@ export default function Dashboard() {
               </label>
             </Button>
             {uploading && (
-              <p className="text-sm text-gray-600 mt-2">
+              <p className="text-sm text-muted-foreground mt-2">
                 Uploading... {progress}%
               </p>
             )}
@@ -123,15 +168,15 @@ export default function Dashboard() {
 
             {loading ? (
               <div className="flex flex-col items-center">
-                <Spinner className="mb-2 h-6 w-6 text-gray-500" />
-                <p className="text-gray-500 text-sm">Loading lectures...</p>
+                <Spinner className="mb-2 h-6 w-6 text-muted-foreground" />
+                <p className="text-muted-foreground text-sm">Loading lectures...</p>
               </div>
             ) : lectures.length === 0 ? (
-              <p className="text-gray-500 text-sm">No lectures found yet.</p>
+              <p className="text-muted-foreground text-sm">No lectures found yet.</p>
             ) : (
               <div className="space-y-4">
-                <div className="p-4 rounded-lg bg-gray-100 border text-center">
-                  <p className="text-gray-700 font-medium mb-2">
+                <div className="p-4 rounded-lg bg-muted border-border text-center">
+                  <p className="text-foreground font-medium mb-2">
                     🎧 Get Started — Select a lecture below to view its MCQs
                   </p>
                 </div>
@@ -144,10 +189,10 @@ export default function Dashboard() {
                       onClick={() => router.push(`/mcqs/${lecture.doc_id}`)}
                     >
                       <CardContent className="p-4 text-center">
-                        <p className="font-semibold text-gray-900 truncate">
+                        <p className="font-semibold text-foreground truncate">
                           {lecture.title || "Untitled Lecture"}
                         </p>
-                        <p className="text-xs text-gray-500 truncate mt-1">
+                        <p className="text-xs text-muted-foreground truncate mt-1">
                           ID: {lecture.doc_id}
                         </p>
                         <Button className="mt-3 w-full" variant="outline">
