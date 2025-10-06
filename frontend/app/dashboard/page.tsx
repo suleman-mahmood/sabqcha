@@ -5,6 +5,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -17,11 +18,13 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [lectures, setLectures] = useState<Lecture[]>([]);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   // 🔹 Fetch all available lectures from backend
   useEffect(() => {
     const fetchLectures = async () => {
+      setLoading(true);
       try {
         const res = await fetch("/api/transcribe/list");
         const data = await res.json();
@@ -29,6 +32,8 @@ export default function Dashboard() {
         if (data.data) setLectures(data.data);
       } catch (err) {
         console.error("Failed to fetch lectures:", err);
+      } finally {
+        setLoading(false);
       }
     };
     fetchLectures();
@@ -116,7 +121,12 @@ export default function Dashboard() {
           <CardContent>
             <h2 className="text-xl font-semibold mb-4">Available Lectures</h2>
 
-            {lectures.length === 0 ? (
+            {loading ? (
+              <div className="flex flex-col items-center">
+                <Spinner className="mb-2 h-6 w-6 text-gray-500" />
+                <p className="text-gray-500 text-sm">Loading lectures...</p>
+              </div>
+            ) : lectures.length === 0 ? (
               <p className="text-gray-500 text-sm">No lectures found yet.</p>
             ) : (
               <div className="space-y-4">
