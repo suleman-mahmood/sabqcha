@@ -13,6 +13,10 @@ class TranscriptionDoc(BaseModel):
     transcribed_content: str
     mcqs: list[LlmMcq] = Field(default_factory=list)
 
+class TranscriptionListEntryUI(BaseModel):
+    doc_id: str
+    title: str
+
 
 class LlmMcqResponse(BaseModel):
     mcqs: list[LlmMcq]
