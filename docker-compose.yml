@@ -20,3 +20,18 @@ services:
     depends_on:
       - backend
     restart: always
+
+  sabqcha_postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: sabqcha
+    volumes:
+      - sabqcha_pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: always
+
+volumes:
+  sabqcha_pg_data:
