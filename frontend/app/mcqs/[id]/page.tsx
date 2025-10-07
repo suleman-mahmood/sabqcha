@@ -63,11 +63,13 @@ export default function MCQPage() {
   // Fetch MCQs
   const { user } = useUser();
 
+  const base = process.env.NEXT_PUBLIC_TRANSCRIBE_API_BASE!;
+
   useEffect(() => {
     const fetchMCQs = async () => {
       if (!user) return;
       try {
-        const res = await fetch(`/api/mcqs`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transcription_id: id, user_id: user.userId }) });
+        const res = await fetch(`${base}/transcribe/mcqs/${encodeURIComponent(id)}`);
         const data = await res.json();
         setTitle(data.title);
         if (data.mcqs) setMcqs(data.mcqs);
@@ -181,7 +183,7 @@ export default function MCQPage() {
 
     // fire-and-forget submit to server endpoint; do not block UI
     if (id && user) {
-      fetch(`/api/mcqs/submit`, {
+      fetch(`${base}/task`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -16,6 +16,8 @@ interface LeaderboardRow {
 
 export default function Leaderboards() {
   const { user } = useUser();
+
+  const base = process.env.NEXT_PUBLIC_TRANSCRIBE_API_BASE!;
   const router = useRouter();
   const [rows, setRows] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +28,7 @@ export default function Leaderboards() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/leaderboard");
+        const res = await fetch(`${base}/leaderboard`);
         if (!res.ok) throw new Error(`Request failed: ${res.status}`);
         const data = await res.json();
         // Expecting an array of { display_name, user_id, rank, score }
