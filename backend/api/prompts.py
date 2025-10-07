@@ -16,8 +16,10 @@ Make sure:
 - The difficulty level stays very easy — suitable for a quick revision or recap.
 """
 
+
 def generate_mcq_user_prompt(tr: str) -> str:
     return f"Lecture transcript: {tr}"
+
 
 DUMMY_DATA_SYSTEM_PROMPT = """
 You are an expert educational content creator.
@@ -33,6 +35,7 @@ Ensure all content is factually accurate and written in clear, simple language.
 Avoid ambiguous, trick, or opinion-based questions.
 Do not include explanations or reasoning — only the JSON output.
 """
+
 
 def generate_dummy_data_user_prompt(tr: str) -> str:
     return f"""

@@ -8,6 +8,7 @@ from api.dal import mcq_db, user_db
 
 router = APIRouter(prefix="/task")
 
+
 class McqAttempted(BaseModel):
     answer: str
     did_skip: bool
@@ -18,6 +19,7 @@ class SubmitTaskBody(BaseModel):
     user_id: str
     display_name: str
     mcqs: list[McqAttempted]
+
 
 @router.post("")
 async def submit_task(body: SubmitTaskBody, cur: AsyncCursor = Depends(get_cursor)):

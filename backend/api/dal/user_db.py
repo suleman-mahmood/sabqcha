@@ -3,6 +3,7 @@ from psycopg import AsyncCursor
 from api.models.transcription_models import UserDocWithId
 from api.utils import internal_id
 
+
 async def insert_user(cur: AsyncCursor, display_name: str, score: int):
     await cur.execute(
         """
@@ -11,9 +12,10 @@ async def insert_user(cur: AsyncCursor, display_name: str, score: int):
         )
         values (%s, %s, %s)
         """,
-        (internal_id(), display_name, score)
+        (internal_id(), display_name, score),
     )
     await cur.connection.commit()
+
 
 async def list_users(cur: AsyncCursor) -> list[UserDocWithId]:
     await cur.execute(
@@ -38,7 +40,7 @@ async def get_user(cur: AsyncCursor, user_id: str) -> UserDocWithId | None:
         where
             public_id = %s
         """,
-        (user_id,)
+        (user_id,),
     )
     row = await cur.fetchone()
     if not row:
@@ -54,6 +56,9 @@ async def update_user_score(cur: AsyncCursor, user_id: str, new_score: int):
         where
             public_id = %s
         """,
-        (new_score, user_id,)
+        (
+            new_score,
+            user_id,
+        ),
     )
     await cur.connection.commit()

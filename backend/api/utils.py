@@ -1,4 +1,6 @@
-import base58, secrets
+import base58
+import secrets
+
 
 def internal_id(size: int = 16) -> str:
     return base58.b58encode(secrets.token_bytes(size)).decode()
