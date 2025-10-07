@@ -149,8 +149,11 @@ export default function MCQPage() {
     }
   };
 
-  // Skip current question and move on
+  // Skip current question and move on (disabled after selecting an option)
   const handleSkip = () => {
+    // Do not allow skipping if the user has already selected an answer for this question
+    if (selectedAnswers[currentIndex]) return;
+
     if (currentIndex < mcqs.length - 1) {
       setCurrentIndex((c) => c + 1);
     } else {
@@ -381,16 +384,16 @@ export default function MCQPage() {
 
                 {/* Controls */}
                 <div className="flex items-center justify-between gap-4">
-                  <Button variant="ghost" onClick={handleSkip}>
+                  <Button variant="ghost" onClick={handleSkip} disabled={!!selectedAnswers[currentIndex]}>
                     Skip
                   </Button>
 
                   <div className="flex items-center gap-3">
-                    <Button
-                      variant="default"
-                      onClick={handleNext}
-                      disabled={!selectedAnswers[currentIndex] && currentIndex < mcqs.length}
-                    >
+                      <Button
+                        variant="default"
+                        onClick={handleNext}
+                        disabled={!selectedAnswers[currentIndex]}
+                      >
                       {currentIndex === mcqs.length - 1 ? "Finish" : "Next"}
                     </Button>
                   </div>
