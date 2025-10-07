@@ -1,20 +1,17 @@
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
-from google.cloud.firestore import Client
+from psycopg import AsyncCursor
 
-from api.models.transcription_models import UserDocWithId
-from api.dependencies import get_firestore
+from api.dependencies import get_cursor
+from api.dal import user_db
 
 
 router = APIRouter(prefix="/leaderboard")
 
 @router.get("")
-async def get_leaderboard(db: Client = Depends(get_firestore)):
-    user_docs = [
-        UserDocWithId.model_validate({**doc.to_dict(), "user_id": doc.id})
-        for doc in db.collection("user").stream()
-    ]
+async def get_leaderboard(cur: AsyncCursor = Depends(get_cursor)):
+    user_docs = await user_db.list_users(cur)
     user_docs = sorted(user_docs, key=lambda u: u.score, reverse=True)
 
     res = [
