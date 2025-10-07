@@ -64,6 +64,7 @@ export default function Dashboard() {
   const [progress, setProgress] = useState(0);
   const [lectures, setLectures] = useState<Lecture[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ytLink, setYtLink] = useState("");
   const router = useRouter();
   const { user } = useUser();
 
@@ -116,28 +117,89 @@ export default function Dashboard() {
         const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
         console.log("✅ File uploaded at:", downloadURL);
 
-        // Call backend to transcribe the uploaded file
-        const res = await fetch(`/api/transcribe`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fileName: `lecture/${file.name}`, title, user_id: user?.userId ?? "" }),
-        });
-
-        const data = await res.json();
-        console.log("Transcription started:", data);
+        // Call backend to transcribe the uploaded file (send as file_path)
+        try {
+          const res = await fetch(`/api/transcribe`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ file_path: `lecture/${file.name}`, yt_video_link: null, title, user_id: user?.userId ?? "" }),
+          });
+          const data = await res.json();
+          console.log("Transcription started:", data);
+        } catch (err) {
+          console.error("Failed to start transcription:", err);
+        }
 
         // Refresh lecture list
-        const listRes = await fetch("/api/transcribe/list", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user_id: user?.userId ?? "" }),
-        });
-        const listData = await listRes.json();
-        if (listData.data) setLectures(listData.data);
+        try {
+          const listRes = await fetch("/api/transcribe/list", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: user?.userId ?? "" }),
+          });
+          const listData = await listRes.json();
+          if (listData.data) setLectures(listData.data);
+        } catch (err) {
+          console.error("Failed to refresh lectures:", err);
+        }
 
         setUploading(false);
       }
     );
+  };
+
+  // 🔹 Handle YouTube share link submission
+  const handleYoutubeSubmit = async () => {
+    if (!ytLink) {
+      alert("Please enter a YouTube share link.");
+      return;
+    }
+    let parsed;
+    try {
+      parsed = new URL(ytLink);
+    } catch (e) {
+      alert("Invalid URL.");
+      return;
+    }
+
+    if (parsed.hostname !== "youtu.be") {
+      alert("Please provide a youtu.be share URL (use YouTube's Share -> Copy link).");
+      return;
+    }
+
+    const title = window.prompt("Enter a title for this lecture:");
+    if (!title) {
+      alert("Submission cancelled: title is required.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const res = await fetch(`/api/transcribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_path: null, yt_video_link: ytLink, title, user_id: user?.userId ?? "" }),
+      });
+      const data = await res.json();
+      console.log("Transcription started (yt):", data);
+
+      // Refresh lecture list
+      const listRes = await fetch("/api/transcribe/list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: user?.userId ?? "" }),
+      });
+      const listData = await listRes.json();
+      if (listData.data) setLectures(listData.data);
+
+      // clear input on success
+      setYtLink("");
+    } catch (err) {
+      console.error("Failed to submit YouTube link:", err);
+      alert("Failed to submit YouTube link.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -156,19 +218,33 @@ export default function Dashboard() {
             <Upload className="mx-auto mb-3" />
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Button asChild disabled={uploading}>
-                <label className="cursor-pointer">
-                  {uploading ? "Uploading..." : "Select Audio File"}
-                  <input
-                    type="file"
-                    accept="audio/*"
-                    hidden
-                    onChange={(e) =>
-                      e.target.files && handleUpload(e.target.files[0])
-                    }
-                  />
-                </label>
-              </Button>
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <Button asChild disabled={uploading}>
+                  <label className="cursor-pointer">
+                    {uploading ? "Uploading..." : "Select Audio File"}
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      hidden
+                      onChange={(e) =>
+                        e.target.files && handleUpload(e.target.files[0])
+                      }
+                    />
+                  </label>
+                </Button>
+
+                <input
+                  type="text"
+                  value={ytLink}
+                  onChange={(e) => setYtLink(e.target.value)}
+                  placeholder="Paste youtu.be share link (eg. https://youtu.be/ID?si=...)"
+                  className="border border-input px-3 py-2 rounded-md w-80 text-sm"
+                  disabled={uploading}
+                />
+                <Button variant="outline" disabled={uploading} onClick={handleYoutubeSubmit}>
+                  {uploading ? "Submitting..." : "Submit YouTube Link"}
+                </Button>
+              </div>
 
               <Button variant="outline" onClick={() => router.push("/leaderboards")}>Leaderboards</Button>
             </div>

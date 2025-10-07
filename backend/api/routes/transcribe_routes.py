@@ -1,6 +1,8 @@
 import os
 import math
 import ffmpeg
+import yt_dlp
+
 from fastapi.responses import JSONResponse
 from google.cloud.firestore import Client
 from google.cloud.storage import Bucket
@@ -24,6 +26,7 @@ from api.dependencies import get_bucket, get_cursor, get_firestore, get_openai_c
 from api.utils import internal_id
 from api.dal import id_map
 from api.dal import mcq_db, transcription_db
+from api import utils
 
 
 router = APIRouter(prefix="/transcribe")
@@ -33,7 +36,8 @@ UPLIFT_API_KEY = os.getenv("UPLIFT_API_KEY")
 
 
 class TranscribeBody(BaseModel):
-    file_path: str
+    file_path: str | None = None
+    yt_video_link: str | None = None
     title: str
     user_id: str
 
@@ -48,13 +52,18 @@ async def transcribe(
     all_transcripts: list[str] = []
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        input_file = tempfile.NamedTemporaryFile(suffix=".mp3", dir=temp_dir, delete=False)
-
-        blob = bucket.blob(body.file_path)
-        blob.download_to_filename(input_file.name)
+        input_file_name: str
+        if body.yt_video_link:
+            input_file_name = utils.download_youtube_audio_temp(body.yt_video_link, temp_dir)
+        else:
+            assert body.file_path
+            input_file = tempfile.NamedTemporaryFile(suffix=".mp3", dir=temp_dir, delete=False)
+            blob = bucket.blob(body.file_path)
+            blob.download_to_filename(input_file.name)
+            input_file_name = input_file.name
 
         chunk_length = 60
-        probe = ffmpeg.probe(input_file.name)
+        probe = ffmpeg.probe(input_file_name)
         duration = math.floor(float(probe["format"]["duration"]))
         num_chunks = math.ceil(duration / chunk_length)
         chunks = []
@@ -69,14 +78,14 @@ async def transcribe(
         for i in range(num_chunks):
             start_time = i * chunk_length
             temp_chunk = tempfile.NamedTemporaryFile(
-                suffix=os.path.splitext(input_file.name)[1],
+                suffix=os.path.splitext(input_file_name)[1],
                 dir=temp_dir,
                 delete=False,
             )
 
             # Create chunk using ffmpeg (lossless copy)
             (
-                ffmpeg.input(input_file.name, ss=start_time, t=chunk_length)
+                ffmpeg.input(input_file_name, ss=start_time, t=chunk_length)
                 .output(temp_chunk.name, c="copy")
                 .overwrite_output()
                 .run(quiet=True)
@@ -115,8 +124,11 @@ async def transcribe(
             all_transcripts.append(transcript)
 
     final_transcript = " ".join(all_transcripts)
+    db_file_path = body.yt_video_link or body.file_path
+    assert db_file_path
+
     trans_id = await transcription_db.insert_transcription(
-        cur, body.file_path, body.title, body.user_id, final_transcript
+        cur, db_file_path, body.title, body.user_id, final_transcript
     )
 
     openai_res = openai_client.responses.parse(
