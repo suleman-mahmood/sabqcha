@@ -208,8 +208,8 @@ export default function Dashboard() {
           {/* Upload / YouTube card */}
           <Card className="md:col-span-2 p-6">
             <CardContent>
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-accent rounded-lg">
+              <div className="flex flex-col sm:flex-row items-start gap-4">
+                <div className="p-3 bg-accent rounded-lg self-center sm:self-start">
                   <Upload />
                 </div>
 
@@ -237,7 +237,7 @@ export default function Dashboard() {
 
                   {/* Upload mode */}
                   {uploadMode === 'upload' && (
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row items-center gap-3">
                       <Button asChild disabled={uploading}>
                         <label className="cursor-pointer">
                           {uploading ? 'Uploading...' : 'Select Audio File'}
@@ -256,13 +256,13 @@ export default function Dashboard() {
 
                   {/* YouTube mode */}
                   {uploadMode === 'youtube' && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row items-center gap-2">
                       <input
                         type="text"
                         value={ytLink}
                         onChange={(e) => setYtLink(e.target.value)}
                         placeholder="Paste youtu.be share link (eg. https://youtu.be/ID?si=...)"
-                        className="border border-input px-3 py-2 rounded-md w-80 text-sm"
+                        className="border border-input px-3 py-2 rounded-md w-full sm:w-80 text-sm"
                         disabled={uploading}
                       />
                       <Button variant="outline" disabled={uploading} onClick={handleYoutubeSubmit}>
