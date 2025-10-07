@@ -69,17 +69,15 @@ export default function Dashboard() {
   const router = useRouter();
   const { user } = useUser();
 
+  const base = process.env.NEXT_PUBLIC_TRANSCRIBE_API_BASE!;
+
   // 🔹 Fetch all available lectures from backend
   useEffect(() => {
     const fetchLectures = async () => {
       if (!user) return;
       setLoading(true);
       try {
-        const res = await fetch("/api/transcribe/list", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user_id: user.userId }),
-        });
+        const res = await fetch(`${base}/transcribe/list`);
         const data = await res.json();
         // ✅ New format: { data: [ { doc_id, title } ] }
         if (data.data) setLectures(data.data);
@@ -120,7 +118,7 @@ export default function Dashboard() {
 
         // Call backend to transcribe the uploaded file (send as file_path)
         try {
-          const res = await fetch(`/api/transcribe`, {
+          const res = await fetch(`${base}/transcribe`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ file_path: `lecture/${file.name}`, yt_video_link: null, title, user_id: user?.userId ?? "" }),
@@ -133,11 +131,7 @@ export default function Dashboard() {
 
         // Refresh lecture list
         try {
-          const listRes = await fetch("/api/transcribe/list", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: user?.userId ?? "" }),
-          });
+          const listRes = await fetch(`${base}/transcribe/list`);
           const listData = await listRes.json();
           if (listData.data) setLectures(listData.data);
         } catch (err) {
@@ -176,7 +170,7 @@ export default function Dashboard() {
 
     setUploading(true);
     try {
-      const res = await fetch(`/api/transcribe`, {
+      const res = await fetch(`${base}/transcribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ file_path: null, yt_video_link: ytLink, title, user_id: user?.userId ?? "" }),
@@ -185,11 +179,7 @@ export default function Dashboard() {
       console.log("Transcription started (yt):", data);
 
       // Refresh lecture list
-      const listRes = await fetch("/api/transcribe/list", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: user?.userId ?? "" }),
-      });
+      const listRes = await fetch(`${base}/transcribe/list`);
       const listData = await listRes.json();
       if (listData.data) setLectures(listData.data);
 
