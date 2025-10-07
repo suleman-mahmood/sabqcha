@@ -66,10 +66,11 @@ export default function MCQPage() {
   const base = process.env.NEXT_PUBLIC_TRANSCRIBE_API_BASE!;
 
   useEffect(() => {
+    const idParam = Array.isArray(id) ? id[0] : id;
     const fetchMCQs = async () => {
-      if (!user) return;
+      if (!user || !idParam) return;
       try {
-        const res = await fetch(`${base}/transcribe/mcqs/${encodeURIComponent(id)}`);
+        const res = await fetch(`${base}/transcribe/mcqs/${encodeURIComponent(idParam)}`);
         const data = await res.json();
         setTitle(data.title);
         if (data.mcqs) setMcqs(data.mcqs);
@@ -80,7 +81,7 @@ export default function MCQPage() {
       }
     };
 
-    if (id) fetchMCQs();
+    if (idParam) fetchMCQs();
   }, [id, user]);
 
   // Initialize audio effects
