@@ -16,6 +16,10 @@ export default function MCQPage() {
   const { id } = useParams();
   const router = useRouter();
 
+  const introAudioRef = React.useRef<HTMLAudioElement | null>(null);
+  const transAudioRef = React.useRef<HTMLAudioElement | null>(null);
+  const finishAudioRef = React.useRef<HTMLAudioElement | null>(null);
+
   const [mcqs, setMcqs] = useState<MCQ[]>([]);
   const [selectedAnswers, setSelectedAnswers] = useState<{ [index: number]: string }>({});
   const [results, setResults] = useState<{ [index: number]: boolean }>({});
@@ -58,6 +62,26 @@ export default function MCQPage() {
     if (id) fetchMCQs();
   }, [id, user]);
 
+  // Initialize audio effects
+  useEffect(() => {
+    introAudioRef.current = new Audio('/mcq_intro.wav');
+    introAudioRef.current.preload = 'auto';
+    introAudioRef.current.volume = 0.8;
+
+    transAudioRef.current = new Audio('/mcq_transition.wav');
+    transAudioRef.current.preload = 'auto';
+    transAudioRef.current.volume = 0.8;
+
+    finishAudioRef.current = new Audio('/mcq_finish.wav');
+    finishAudioRef.current.preload = 'auto';
+    finishAudioRef.current.volume = 0.8;
+  }, []);
+
+  // Play intro when MCQs load or when current question changes
+  useEffect(() => {
+      introAudioRef.current?.play().catch(() => {});
+  }, [loading]);
+
   // Start timer when quiz is ready
   useEffect(() => {
     if (mcqs.length > 0 && startTime === null) {
@@ -93,6 +117,8 @@ export default function MCQPage() {
   // Move to next question (only allowed if selected or via Skip)
   const handleNext = () => {
     if (!mcqs) return;
+    // play transition sound
+    transAudioRef.current?.play().catch(() => {});
     if (currentIndex < mcqs.length - 1) {
       setCurrentIndex((c) => c + 1);
     } else {
@@ -102,6 +128,8 @@ export default function MCQPage() {
 
   // Skip current question and move on
   const handleSkip = () => {
+    // play transition sound
+    transAudioRef.current?.play().catch(() => {});
     if (currentIndex < mcqs.length - 1) {
       setCurrentIndex((c) => c + 1);
     } else {
@@ -111,6 +139,8 @@ export default function MCQPage() {
 
   // Compute final stats and submit results to backend (fire-and-forget, no UI feedback)
   const finishQuiz = () => {
+   finishAudioRef.current?.play().catch(() => {});
+
     const attemptedKeys = Object.keys(selectedAnswers).map((k) => Number(k));
     const attempted = attemptedKeys.length;
     const correct = Object.values(results).filter(Boolean).length;
