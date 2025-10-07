@@ -47,7 +47,7 @@ assert dbname and user and password and host and port
 async def on_startup():
     dependencies.pool = AsyncConnectionPool(
         f"dbname={dbname} user={user} password={password} host={host} port={port}",
-        min_size=1,
+        min_size=5,
         max_size=10,
     )
     logger.info("PG Pool initialized")
