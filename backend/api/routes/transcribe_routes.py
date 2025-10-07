@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from google.cloud.firestore import Client
 from google.cloud.storage import Bucket
 from openai import OpenAI
-from psycopg import Cursor
+from psycopg import AsyncCursor
 import requests
 import tempfile
 
@@ -33,7 +33,7 @@ class TranscribeBody(BaseModel):
 @router.post("")
 async def transcribe(
     body: TranscribeBody,
-    cur: Cursor = Depends(get_cursor),
+    cur: AsyncCursor = Depends(get_cursor),
     openai_client: OpenAI = Depends(get_openai_client),
     bucket: Bucket = Depends(get_bucket),
 ):
@@ -93,12 +93,12 @@ class TranscriptionListEntryResponse(BaseModel):
     title: str
 
 @router.get("/list")
-async def get_all_transcription_docs(cur: Cursor = Depends(get_cursor)):
+async def get_all_transcription_docs(cur: AsyncCursor = Depends(get_cursor)):
     entries = await transcription_db.list_transcriptions(cur)
     return JSONResponse(content={"data": [e.model_dump(mode="json") for e in entries]})
 
 @router.get("/mcqs/{transcription_id}")
-async def get_transcription_mcqs(transcription_id: str, cur: Cursor = Depends(get_cursor)):
+async def get_transcription_mcqs(transcription_id: str, cur: AsyncCursor = Depends(get_cursor)):
     trans = await transcription_db.get_transcription(cur, transcription_id)
     assert trans
     mcqs = await mcq_db.list_mcqs(cur, transcription_id)
@@ -107,7 +107,7 @@ async def get_transcription_mcqs(transcription_id: str, cur: Cursor = Depends(ge
     return JSONResponse(content=res)
 
 @router.get("/create-demo-mcqs")
-async def create_demo_mcqs(cur: Cursor = Depends(get_cursor), openai_client: OpenAI = Depends(get_openai_client)):
+async def create_demo_mcqs(cur: AsyncCursor = Depends(get_cursor), openai_client: OpenAI = Depends(get_openai_client)):
     topics = [
         # "Newton's law of motion",
         # "Work, Engergy, Power",
@@ -145,8 +145,8 @@ async def create_demo_mcqs(cur: Cursor = Depends(get_cursor), openai_client: Ope
 
 
 @router.get("/migration")
-async def do_migration_to_pg(db: Client = Depends(get_firestore), cur: Cursor = Depends(get_cursor)):
-    system_user_row = cur.execute(
+async def do_migration_to_pg(db: Client = Depends(get_firestore), cur: AsyncCursor = Depends(get_cursor)):
+    await cur.execute(
         """
         insert into sabqcha_user (
             public_id, display_name, score
@@ -155,14 +155,15 @@ async def do_migration_to_pg(db: Client = Depends(get_firestore), cur: Cursor = 
         returning id
         """,
         ("system-user-id", "System User", 0)
-    ).fetchone()
+    )
+    system_user_row = await cur.fetchone()
     assert system_user_row
     system_user_id: int = system_user_row[0]
     logger.info("System user id: {}", system_user_id)
 
     for doc in db.collection("user").stream():
         user_doc = UserDoc.model_validate(doc.to_dict())
-        cur.execute(
+        await cur.execute(
             """
             insert into sabqcha_user (
                 public_id, display_name, score
@@ -176,9 +177,9 @@ async def do_migration_to_pg(db: Client = Depends(get_firestore), cur: Cursor = 
     for doc in db.collection("transcription").stream():
         trans = TranscriptionDoc.model_validate(doc.to_dict())
 
-        user_row_id = id_map.get_user_row_id(cur, trans.user_id) if trans.user_id else system_user_id 
+        user_row_id = await id_map.get_user_row_id(cur, trans.user_id) if trans.user_id else system_user_id 
         assert user_row_id is not None
-        cur.execute(
+        await cur.execute(
             """
             insert into transcription (
                 public_id, file_path, title, sabqcha_user_row_id, transcribed_content
@@ -188,12 +189,12 @@ async def do_migration_to_pg(db: Client = Depends(get_firestore), cur: Cursor = 
             """,
             (internal_id(), trans.audio_file_path, trans.title or "No Title", user_row_id, trans.transcribed_content)
         )
-        trans_row = cur.fetchone()
+        trans_row = await cur.fetchone()
         assert trans_row
         trans_row_id: int = trans_row[0]
 
         for mcq in trans.mcqs:
-            cur.execute(
+            await cur.execute(
                 """
                 insert into mcq (
                     public_id, transcription_row_id, question, options, answer
@@ -203,4 +204,4 @@ async def do_migration_to_pg(db: Client = Depends(get_firestore), cur: Cursor = 
                 (internal_id(), trans_row_id, mcq.question, mcq.options, mcq.answer)
             )
 
-    cur.connection.commit()
+    await cur.connection.commit()

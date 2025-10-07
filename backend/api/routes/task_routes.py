@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from psycopg import Cursor
+from psycopg import AsyncCursor
 from pydantic import BaseModel
 
 from api.dependencies import get_cursor
@@ -20,7 +20,7 @@ class SubmitTaskBody(BaseModel):
     mcqs: list[McqAttempted]
 
 @router.post("")
-async def submit_task(body: SubmitTaskBody, cur: Cursor = Depends(get_cursor)):
+async def submit_task(body: SubmitTaskBody, cur: AsyncCursor = Depends(get_cursor)):
     mcqs = await mcq_db.list_mcqs(cur, body.transcription_id)
 
     score = 0

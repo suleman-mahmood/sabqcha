@@ -1,22 +1,14 @@
 import os
 import firebase_admin
+from loguru import logger
 
-from psycopg_pool import ConnectionPool
+from psycopg_pool import AsyncConnectionPool
 from firebase_admin import credentials, storage, firestore
 from openai import OpenAI
 
 
 # Setup PG
-dbname = os.getenv("SABQCHA_PG_DB")
-user = os.getenv("SABQCHA_PG_USER")
-password = os.getenv("SABQCHA_PG_PASSWORD")
-host = os.getenv("SABQCHA_PG_HOST")
-port = os.getenv("SABQCHA_PG_PORT")
-
-assert dbname and user and password and host and port
-
-_pool = ConnectionPool(f"dbname={dbname} user={user} password={password} host={host} port={port}", min_size=1, max_size=10)
-
+pool: AsyncConnectionPool | None = None
 
 # Setup Firebase
 _cred = credentials.Certificate("firebase_credentials.json")
@@ -30,9 +22,13 @@ _db = firestore.client()
 # Setup OpenAI
 _openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-def get_cursor():
-    with _pool.connection() as conn:
-        with conn.cursor() as cur:
+async def get_cursor():
+    if not pool:
+        logger.error("Getting cursor before pool is initialized")
+        raise Exception("Getting cursor before pool is initialized")
+
+    async with pool.connection() as conn:
+        async with conn.cursor() as cur:
             yield cur
 
 def get_bucket():
