@@ -26,6 +26,7 @@ def download_youtube_audio_temp(url: str, temp_dir: str) -> str:
                 "preferredquality": "192",
             }
         ],
+        "proxy": "http://31.59.20.176:6754",
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
