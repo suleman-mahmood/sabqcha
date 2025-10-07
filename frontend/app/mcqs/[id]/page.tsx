@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useUser } from "@/components/UserProvider";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Variants } from "framer-motion";
 
 interface MCQ {
   question: string;
@@ -13,19 +13,19 @@ interface MCQ {
   answer: string;
 }
 
-const pageVariants = {
+const pageVariants: Variants = {
   hidden: { opacity: 0, y: 12 },
   enter: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 140, damping: 18 } },
   exit: { opacity: 0, y: -8, transition: { duration: 0.15 } },
 };
 
-const cardVariants = {
+const cardVariants: Variants = {
   hidden: { opacity: 0, scale: 0.98, y: 8 },
   visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 160, damping: 20 } },
   exit: { opacity: 0, scale: 0.98, y: -6, transition: { duration: 0.12 } },
 };
 
-const optionVariants = {
+const optionVariants: Variants = {
   initial: { opacity: 0, x: -6 },
   animate: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 260, damping: 22 } },
   exit: { opacity: 0, x: 6, transition: { duration: 0.12 } },
