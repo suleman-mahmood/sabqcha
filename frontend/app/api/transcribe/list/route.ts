@@ -1,0 +1,24 @@
+import { NextResponse } from "next/server";
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const userId = body?.user_id as string | undefined;
+    // we currently don't use userId server-side, but accept it in the body
+
+    const baseUrl = process.env.NEXT_PUBLIC_TRANSCRIBE_API_BASE!;
+    const res = await fetch(`${baseUrl}/transcribe/list`);
+    const data = await res.json();
+
+    // Ensure expected shape
+    if (!data.data) {
+      console.error("Unexpected response format from backend:", data);
+      return NextResponse.json({ data: [] });
+    }
+
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("Failed to fetch lecture list:", error);
+    return NextResponse.json({ error: "Failed to fetch lecture list" }, { status: 500 });
+  }
+}
