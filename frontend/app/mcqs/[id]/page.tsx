@@ -305,17 +305,21 @@ export default function MCQPage() {
                       btnStyle = isCorrect ? "default" : "destructive";
                     }
 
-                    return (
+                  return (
+                    <div key={idx} className="flex items-start gap-3">
+                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-sm font-semibold mt-1">
+                        {idx + 1}
+                      </span>
                       <Button
-                        key={idx}
                         variant={btnStyle as any}
-                        className="w-full justify-start text-left"
+                        className="flex-1 justify-start text-left"
                         onClick={() => handleSelectOption(opt)}
                         disabled={!!selectedAnswers[currentIndex]}
                       >
                         {opt}
                       </Button>
-                    );
+                    </div>
+                  );
                   })}
                 </div>
 
