@@ -65,6 +65,7 @@ export default function Dashboard() {
   const [lectures, setLectures] = useState<Lecture[]>([]);
   const [loading, setLoading] = useState(true);
   const [ytLink, setYtLink] = useState("");
+  const [uploadMode, setUploadMode] = useState<"upload" | "youtube">("upload");
   const router = useRouter();
   const { user } = useUser();
 
@@ -212,50 +213,96 @@ export default function Dashboard() {
         {/* 🔹 Title */}
         <h1 className="text-3xl font-bold text-center mb-8">Dashboard</h1>
 
-        {/* 🔸 Upload Section */}
-        <Card className="p-6 text-center mb-8">
-          <CardContent>
-            <Upload className="mx-auto mb-3" />
+        {/* 🔸 Upload & Leaderboards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          {/* Upload / YouTube card */}
+          <Card className="md:col-span-2 p-6">
+            <CardContent>
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-accent rounded-lg">
+                  <Upload />
+                </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <div className="flex flex-col sm:flex-row items-center gap-3">
-                <Button asChild disabled={uploading}>
-                  <label className="cursor-pointer">
-                    {uploading ? "Uploading..." : "Select Audio File"}
-                    <input
-                      type="file"
-                      accept="audio/*"
-                      hidden
-                      onChange={(e) =>
-                        e.target.files && handleUpload(e.target.files[0])
-                      }
-                    />
-                  </label>
-                </Button>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold mb-1">Add Lecture</h3>
+                  <p className="text-sm text-muted-foreground mb-4">Choose one option to add a lecture — upload audio OR submit a YouTube link.</p>
 
-                <input
-                  type="text"
-                  value={ytLink}
-                  onChange={(e) => setYtLink(e.target.value)}
-                  placeholder="Paste youtu.be share link (eg. https://youtu.be/ID?si=...)"
-                  className="border border-input px-3 py-2 rounded-md w-80 text-sm"
-                  disabled={uploading}
-                />
-                <Button variant="outline" disabled={uploading} onClick={handleYoutubeSubmit}>
-                  {uploading ? "Submitting..." : "Submit YouTube Link"}
-                </Button>
+                  {/* Mode selector */}
+                  <div className="inline-flex rounded-md bg-muted p-1 mb-4">
+                    <button
+                      type="button"
+                      className={`px-3 py-1 rounded-md text-sm ${uploadMode === 'upload' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                      onClick={() => setUploadMode('upload')}
+                    >
+                      Upload Audio
+                    </button>
+                    <button
+                      type="button"
+                      className={`px-3 py-1 rounded-md text-sm ${uploadMode === 'youtube' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                      onClick={() => setUploadMode('youtube')}
+                    >
+                      YouTube Link
+                    </button>
+                  </div>
+
+                  {/* Upload mode */}
+                  {uploadMode === 'upload' && (
+                    <div className="flex items-center gap-3">
+                      <Button asChild disabled={uploading}>
+                        <label className="cursor-pointer">
+                          {uploading ? 'Uploading...' : 'Select Audio File'}
+                          <input
+                            type="file"
+                            accept="audio/*"
+                            hidden
+                            onChange={(e) => e.target.files && handleUpload(e.target.files[0])}
+                          />
+                        </label>
+                      </Button>
+
+                      <p className="text-sm text-muted-foreground">Supported: mp3</p>
+                    </div>
+                  )}
+
+                  {/* YouTube mode */}
+                  {uploadMode === 'youtube' && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={ytLink}
+                        onChange={(e) => setYtLink(e.target.value)}
+                        placeholder="Paste youtu.be share link (eg. https://youtu.be/ID?si=...)"
+                        className="border border-input px-3 py-2 rounded-md w-80 text-sm"
+                        disabled={uploading}
+                      />
+                      <Button variant="outline" disabled={uploading} onClick={handleYoutubeSubmit}>
+                        {uploading ? 'Submitting...' : 'Submit'}
+                      </Button>
+                    </div>
+                  )}
+
+                  {uploading && (
+                    <div className="mt-4">
+                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-primary" style={{ width: `${progress}%` }} />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">Uploading... {progress}%</p>
+                    </div>
+                  )}
+                </div>
               </div>
+            </CardContent>
+          </Card>
 
-              <Button variant="outline" onClick={() => router.push("/leaderboards")}>Leaderboards</Button>
-            </div>
-
-            {uploading && (
-              <p className="text-sm text-muted-foreground mt-2">
-                Uploading... {progress}%
-              </p>
-            )}
-          </CardContent>
-        </Card>
+          {/* Leaderboards card */}
+          <Card className="p-6">
+            <CardContent className="flex flex-col items-center justify-center">
+              <h3 className="text-lg font-semibold mb-2">Leaderboards</h3>
+              <p className="text-sm text-muted-foreground mb-4 text-center">See top learners and compare your progress.</p>
+              <Button variant="ghost" onClick={() => router.push("/leaderboards")}>View Leaderboards</Button>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* 🔸 Lecture List */}
         <Card className="p-6 mb-8">
