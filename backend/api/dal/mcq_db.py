@@ -2,11 +2,11 @@ from psycopg import Cursor
 
 from api.utils import internal_id
 from api.dal import id_map
-from backend.api.models.transcription_models import LlmMcq
+from api.models.transcription_models import LlmMcq
 
 
 async def insert_mcq(cur: Cursor, trans_id: str, question: str, options: list[str], answer: str):
-    trans_row_id = id_map.get_user_row_id(cur, trans_id)
+    trans_row_id = id_map.get_transcription_row_id(cur, trans_id)
     assert trans_row_id
 
     cur.execute(
@@ -22,7 +22,7 @@ async def insert_mcq(cur: Cursor, trans_id: str, question: str, options: list[st
     cur.connection.commit()
 
 async def list_mcqs(cur: Cursor, trans_id: str) -> list[LlmMcq]:
-    trans_row_id = id_map.get_user_row_id(cur, trans_id)
+    trans_row_id = id_map.get_transcription_row_id(cur, trans_id)
     assert trans_row_id
     
     cur.execute(
@@ -37,4 +37,4 @@ async def list_mcqs(cur: Cursor, trans_id: str) -> list[LlmMcq]:
         (trans_row_id,)
     )
     rows = cur.fetchall()
-    return [LlmMcq(question=r[0], answer=r[1], options=r[2]) for r in rows]
+    return [LlmMcq(question=r[0], options=r[1], answer=r[2], ) for r in rows]

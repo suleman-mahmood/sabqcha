@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends
-from google.cloud.firestore import Client, Increment
+from psycopg import Cursor
 from pydantic import BaseModel
 
-from api.models.transcription_models import TranscriptionDoc, UserDoc
-from api.dependencies import get_firestore
+from api.dependencies import get_cursor
+from api.dal import mcq_db, user_db
 
 
 router = APIRouter(prefix="/task")
@@ -20,27 +20,24 @@ class SubmitTaskBody(BaseModel):
     mcqs: list[McqAttempted]
 
 @router.post("")
-async def submit_task(body: SubmitTaskBody, db: Client = Depends(get_firestore)):
-    doc = db.collection("transcription").document(body.transcription_id).get()
-    trans = TranscriptionDoc.model_validate(doc.to_dict())
+async def submit_task(body: SubmitTaskBody, cur: Cursor = Depends(get_cursor)):
+    mcqs = await mcq_db.list_mcqs(cur, body.transcription_id)
 
     score = 0
 
-    for mcq_db, mcq_answer in zip(trans.mcqs, body.mcqs):
-        if mcq_answer.did_skip:
+    for mcq, mcq_attempt in zip(mcqs, body.mcqs):
+        if mcq_attempt.did_skip:
             continue
 
-        if mcq_answer.answer != mcq_db.answer:
+        if mcq_attempt.answer != mcq.answer:
             score -= 1
         else:
             score += 3
 
     score = max(score, 0)
 
-    user_doc_ref = db.collection("user").document(body.user_id)
-    user_doc = user_doc_ref.get()
-    if user_doc.exists:
-        user_doc_ref.update({"score": Increment(score)})
+    user_doc = await user_db.get_user(cur, body.user_id)
+    if user_doc:
+        await user_db.update_user_score(cur, body.user_id, user_doc.score + score)
     else:
-        user = UserDoc(display_name=body.display_name, score=score)
-        db.collection("user").add(user.model_dump(mode="json"), document_id=body.user_id)
+        await user_db.insert_user(cur, body.display_name, score)

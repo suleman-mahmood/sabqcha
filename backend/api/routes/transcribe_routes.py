@@ -16,7 +16,7 @@ from api.prompts import DUMMY_DATA_SYSTEM_PROMPT, MCQ_SYSTEM_PROMPT, generate_du
 from api.dependencies import get_bucket, get_cursor, get_firestore, get_openai_client
 from api.utils import internal_id
 from api.dal import id_map
-from backend.api.dal import mcq_db, transcription_db
+from api.dal import mcq_db, transcription_db
 
 
 router = APIRouter(prefix="/transcribe")
