@@ -71,9 +71,8 @@ async def transcribe(
             assert body.file_path
             input_file = tempfile.NamedTemporaryFile(suffix=".mp3", dir=temp_dir, delete=False)
             input_file_name = input_file.name
-            input_file.close()
+
             blob = bucket.blob(body.file_path)
-            # download blob in thread
             await asyncio.to_thread(blob.download_to_filename, input_file_name)
 
         # probe is blocking
@@ -123,15 +122,16 @@ async def transcribe(
         def _post_chunk(file_path: str) -> str:
             logger.info("Sending file {} to API", file_path)
 
-            files = {"file": ("audio.mp3", file_path, "audio/mpeg")}
-            data = {"model": "scribe-mini", "language": "ur"}
-            headers = {"Authorization": f"Bearer {UPLIFT_API_KEY}"}
-            response = requests.post(
-                f"{UPLIFT_BASE_URL}/transcribe/speech-to-text",
-                headers=headers,
-                files=files,
-                data=data,
-            )
+            with open(file_path, "rb") as f:
+                files = {"file": ("audio.mp3", f, "audio/mpeg")}
+                data = {"model": "scribe-mini", "language": "ur"}
+                headers = {"Authorization": f"Bearer {UPLIFT_API_KEY}"}
+                response = requests.post(
+                    f"{UPLIFT_BASE_URL}/transcribe/speech-to-text",
+                    headers=headers,
+                    files=files,
+                    data=data,
+                )
 
             status_code = response.status_code
             try:
