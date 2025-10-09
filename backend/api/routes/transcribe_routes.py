@@ -1,7 +1,8 @@
 import os
 import math
 import ffmpeg
-import yt_dlp
+import asyncio
+
 
 from fastapi.responses import JSONResponse
 from google.cloud.firestore import Client
@@ -34,12 +35,20 @@ router = APIRouter(prefix="/transcribe")
 UPLIFT_BASE_URL = "https://api.upliftai.org/v1"
 UPLIFT_API_KEY = os.getenv("UPLIFT_API_KEY")
 
+# One hour in seconds
+MAX_AUDIO_DURATION = 60 * 60
+AUDIO_CHUNK_LEN = 60  # In seconds
+
 
 class TranscribeBody(BaseModel):
     file_path: str | None = None
     yt_video_link: str | None = None
     title: str
     user_id: str
+
+
+class UpliftAiApiError(Exception):
+    pass
 
 
 @router.post("")
@@ -54,74 +63,104 @@ async def transcribe(
     with tempfile.TemporaryDirectory() as temp_dir:
         input_file_name: str
         if body.yt_video_link:
-            input_file_name = utils.download_youtube_audio_temp(body.yt_video_link, temp_dir)
+            # download youtube audio (blocking) in thread
+            input_file_name = await asyncio.to_thread(
+                utils.download_youtube_audio_temp, body.yt_video_link, temp_dir
+            )
         else:
             assert body.file_path
             input_file = tempfile.NamedTemporaryFile(suffix=".mp3", dir=temp_dir, delete=False)
-            blob = bucket.blob(body.file_path)
-            blob.download_to_filename(input_file.name)
             input_file_name = input_file.name
 
-        chunk_length = 60
-        probe = ffmpeg.probe(input_file_name)
+            blob = bucket.blob(body.file_path)
+            await asyncio.to_thread(blob.download_to_filename, input_file_name)
+
+        # probe is blocking
+        probe = await asyncio.to_thread(ffmpeg.probe, input_file_name)
         duration = math.floor(float(probe["format"]["duration"]))
-        num_chunks = math.ceil(duration / chunk_length)
-        chunks = []
+
+        if duration > MAX_AUDIO_DURATION:
+            logger.error("User uploaded a {} mins audio", duration / 60)
+
+        num_chunks = math.ceil(duration / AUDIO_CHUNK_LEN)
+
+        # If last chunk is very small ignore it
+        if duration - (num_chunks - 1) * AUDIO_CHUNK_LEN < 5:
+            num_chunks -= 1
 
         logger.info("Total audio duration: {}", duration)
         logger.info("Num chunks: {}", num_chunks)
 
-        # If last chunk is very small ignore it
-        if duration - (num_chunks - 1) * chunk_length < 5:
-            num_chunks -= 1
-
+        make_chunk_args: list[tuple[str, int]] = []
         for i in range(num_chunks):
-            start_time = i * chunk_length
+            start_time = i * AUDIO_CHUNK_LEN
             temp_chunk = tempfile.NamedTemporaryFile(
                 suffix=os.path.splitext(input_file_name)[1],
                 dir=temp_dir,
                 delete=False,
             )
 
-            # Create chunk using ffmpeg (lossless copy)
+            make_chunk_args.append((temp_chunk.name, start_time))
+
+        # run ffmpeg (blocking) in thread
+        def _make_chunk(outname: str, ss: int) -> None:
             (
-                ffmpeg.input(input_file_name, ss=start_time, t=chunk_length)
-                .output(temp_chunk.name, c="copy")
+                ffmpeg.input(input_file_name, ss=ss, t=AUDIO_CHUNK_LEN)
+                .output(outname, c="copy")
                 .overwrite_output()
                 .run(quiet=True)
             )
 
-            chunks.append(temp_chunk)
+        await asyncio.gather(
+            *[
+                asyncio.to_thread(_make_chunk, temp_chunk_name, start_time)
+                for temp_chunk_name, start_time in make_chunk_args
+            ]
+        )
 
-        for sharded_file in chunks:
-            logger.info("Sending file {} to API", sharded_file.name)
+        # helper to post a chunk to uplift (blocking) in thread
+        def _post_chunk(file_path: str) -> str:
+            logger.info("Sending file {} to API", file_path)
 
-            files = {"file": ("audio.mp3", sharded_file, "audio/mpeg")}
-            data = {"model": "scribe-mini", "language": "ur"}
-            headers = {"Authorization": f"Bearer {UPLIFT_API_KEY}"}
+            with open(file_path, "rb") as f:
+                files = {"file": ("audio.mp3", f, "audio/mpeg")}
+                data = {"model": "scribe-mini", "language": "ur"}
+                headers = {"Authorization": f"Bearer {UPLIFT_API_KEY}"}
+                response = requests.post(
+                    f"{UPLIFT_BASE_URL}/transcribe/speech-to-text",
+                    headers=headers,
+                    files=files,
+                    data=data,
+                )
 
-            response = requests.post(
-                f"{UPLIFT_BASE_URL}/transcribe/speech-to-text",
-                headers=headers,
-                files=files,
-                data=data,
-            )
+            status_code = response.status_code
+            try:
+                res_json = response.json()
+            except Exception:
+                res_json = None
 
-            logger.info("Response Status: {}", response.status_code)
-
-            res_json = response.json()
+            logger.info("Response Status: {}", status_code)
             logger.info("Json: {}", res_json)
 
-            if response.status_code != 200:
-                logger.error("Uplift API returned non 200 error: {}", response.status_code)
-                return Response("Uplift API Failed", status_code=400)
+            if status_code != 200:
+                logger.error("Uplift API returned non 200 error: {}", status_code)
+                raise UpliftAiApiError
 
-            if "transcript" not in res_json:
+            if not res_json or "transcript" not in res_json:
                 logger.error("No transcript in response")
-                return Response("Uplift API Failed", status_code=400)
+                raise UpliftAiApiError
 
-            transcript = res_json["transcript"]
-            all_transcripts.append(transcript)
+            return res_json["transcript"]
+
+        try:
+            all_transcripts = await asyncio.gather(
+                *[
+                    asyncio.to_thread(_post_chunk, sharded_file_name)
+                    for sharded_file_name, _ in make_chunk_args
+                ]
+            )
+        except UpliftAiApiError:
+            return Response("Uplift API Failed", status_code=400)
 
     final_transcript = " ".join(all_transcripts)
     db_file_path = body.yt_video_link or body.file_path
@@ -131,7 +170,8 @@ async def transcribe(
         cur, db_file_path, body.title, body.user_id, final_transcript
     )
 
-    openai_res = openai_client.responses.parse(
+    openai_res = await asyncio.to_thread(
+        openai_client.responses.parse,
         model="gpt-5-mini",
         input=[
             {"role": "system", "content": MCQ_SYSTEM_PROMPT},
@@ -139,6 +179,7 @@ async def transcribe(
         ],
         text_format=LlmMcqResponse,
     )
+
     llm_res = openai_res.output_parsed
     if not llm_res:
         logger.error("Invalid Response form OpenAI: {}", openai_res.model_dump(mode="json"))
