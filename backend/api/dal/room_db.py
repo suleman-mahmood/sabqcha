@@ -1,6 +1,8 @@
 from api.dal import id_map
 from api.dependencies import DataContext
 from api.utils import internal_id, invite_code
+from api.models.room_models import Room
+from api.models.user_models import UserRole
 
 
 async def insert_room(data_context: DataContext, display_name: str, teacher_id: str) -> str:
@@ -44,6 +46,46 @@ async def join_room(data_context: DataContext, room_id: str, student_id: str):
             """,
             (student_row_id, room_row_id),
         )
+
+
+async def list_rooms(data_context: DataContext, user_id: str, user_role: UserRole) -> list[Room]:
+    async with data_context.get_cursor() as cur:
+        match user_role:
+            case UserRole.STUDENT:
+                await cur.execute(
+                    """
+                    select
+                        r.public_id,
+                        r.display_name,
+                        r.invite_code
+                    from
+                        room r
+                        join student_room sr on sr.room_row_id = r.row_id
+                        join student s on s.row_id = sr.student_row_id
+                        join sabqcha_user su on su.row_id = s.sabqcha_user_row_id
+                    where
+                        su.public_id = %s
+                    """,
+                    (user_id,),
+                )
+            case UserRole.TEACHER:
+                await cur.execute(
+                    """
+                    select
+                        r.public_id,
+                        r.display_name,
+                        r.invite_code
+                    from
+                        room r
+                        join teacher t on t.row_id = r.teacher_row_id
+                        join sabqcha_user su on su.row_id = t.sabqcha_user_row_id
+                    where
+                        su.public_id = %s
+                    """,
+                    (user_id,),
+                )
+        rows = await cur.fetchall()
+    return [Room(id=r[0], display_name=r[1], invite_code=r[2]) for r in rows]
 
 
 async def get_room_for_invite_code(data_context: DataContext, invite_code: str) -> str | None:

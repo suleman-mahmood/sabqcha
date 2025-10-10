@@ -42,10 +42,12 @@ async def login_teacher(
     if not user_id:
         return Response("Invalid credentials", status_code=400)
 
+    # TODO: Verify the user_id belongs to a teacher
+
     await session_db.expire_user_sessions(data_context, user_id)
     session_id = await session_db.insert_session(data_context, user_id)
 
-    return JSONResponse({"session_id": session_id})
+    return JSONResponse({"token": session_id})
 
 
 # TODO: Implement Student login

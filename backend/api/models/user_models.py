@@ -12,6 +12,11 @@ class AuthData(BaseModel):
     role: UserRole
 
 
+class User(BaseModel):
+    id: str
+    display_name: str
+
+
 class StudentUser(BaseModel):
     id: str
     display_name: str

@@ -86,14 +86,15 @@ async def auth_middleware(request: Request, call_next):
         return response
 
     token = request.headers.get("Authorization")
-    if not token:
+    if not token or len(token.split(" ")) != 2:
         raise HTTPException(401, detail="Unauthorized")
     if not dependencies.pool:
         raise HTTPException(500, detail="PG Pool not initialized in auth middleware")
 
+    session_id = token.split(" ")[1]
     async with dependencies.pool.connection() as conn:
         async with conn.cursor() as cur:
-            auth_data = await session_db.get_session(cur, token)
+            auth_data = await session_db.get_session(cur, session_id)
 
     if not auth_data:
         raise HTTPException(401, detail="Unauthorized")

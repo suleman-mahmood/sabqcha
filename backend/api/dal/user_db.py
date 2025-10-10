@@ -1,7 +1,7 @@
 from api.dependencies import DataContext, UnAuthDataContext
 from api.utils import internal_id
 from api.dal import id_map
-from api.models.user_models import StudentUser
+from api.models.user_models import StudentUser, User
 
 
 async def get_user_id_from_device(data_context: UnAuthDataContext, device_id: str) -> str | None:
@@ -97,9 +97,27 @@ async def insert_student(data_context: UnAuthDataContext, user_id: str):
         await cur.connection.commit()
 
 
-async def list_students(
-    data_context: DataContext,
-) -> list[StudentUser]:
+async def get_user(data_context: DataContext, user_id: str) -> User | None:
+    async with data_context.get_cursor() as cur:
+        await cur.execute(
+            """
+            select
+                su.public_id,
+                su.display_name
+            from
+                sabqcha_user su
+            where
+                su.public_id = %s
+            """,
+            (user_id,),
+        )
+        row = await cur.fetchone()
+        if not row:
+            return None
+    return User(id=row[0], display_name=row[1])
+
+
+async def list_students(data_context: DataContext) -> list[StudentUser]:
     async with data_context.get_cursor() as cur:
         await cur.execute(
             """

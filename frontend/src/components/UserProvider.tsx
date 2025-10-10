@@ -62,12 +62,8 @@ function generateUUID4() {
 let authPatchApplied = false;
 let currentAuthToken: string | null = null;
 
-function setAuthToken(token: string) {
-  currentAuthToken = token;
-
+function patchFetchOnce() {
   if (authPatchApplied) return;
-
-  // Patch window.fetch to inject Authorization header for /api calls
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   const originalFetch = window.fetch.bind(window);
@@ -80,18 +76,47 @@ function setAuthToken(token: string) {
       if (typeof input === "string") url = input;
       else if (input instanceof Request) url = input.url;
 
-      const isApiCall = url.startsWith("/api") || url.includes(window.location.origin + "/api");
-      if (isApiCall && currentAuthToken) {
-        init = init ? { ...init } : {};
-        // normalize headers to plain object
-        const headers: Record<string, string> = {};
-        if (init.headers instanceof Headers) {
-          init.headers.forEach((v: string, k: string) => (headers[k] = v));
-        } else if (init.headers) {
-          Object.assign(headers, init.headers as Record<string, string>);
+      // Determine if this request is same-origin (relative paths like `/room` or absolute URLs with same origin)
+      let isSameOrigin = false;
+      if (url.startsWith("/")) {
+        isSameOrigin = true;
+      } else {
+        try {
+          const parsed = new URL(url);
+          isSameOrigin = parsed.origin === window.location.origin;
+        } catch (e) {
+          // malformed URL - treat as not same-origin
+          isSameOrigin = false;
         }
-        headers["Authorization"] = `Bearer ${currentAuthToken}`;
-        init.headers = headers;
+      }
+
+      if (isSameOrigin) {
+        const headerToken = localStorage.getItem("token") || currentAuthToken;
+        if (headerToken) {
+          // Merge headers from input (if Request) and init.
+          const mergedHeaders = new Headers();
+          if (input instanceof Request) {
+            input.headers.forEach((v, k) => mergedHeaders.set(k, v));
+          }
+          if (init && init.headers) {
+            if (init.headers instanceof Headers) init.headers.forEach((v, k) => mergedHeaders.set(k, v));
+            else if (Array.isArray(init.headers)) (init.headers as Array<[string, string]>).forEach(([k, v]) => mergedHeaders.set(k, v));
+            else Object.entries(init.headers as Record<string, string>).forEach(([k, v]) => mergedHeaders.set(k, v));
+          }
+          mergedHeaders.set("Authorization", `Bearer ${headerToken}`);
+
+          // If the original input was a Request, create a new Request copying all properties but with merged headers
+          if (input instanceof Request) {
+            const newReq = new Request(input, { headers: mergedHeaders });
+            // If init overrides method/body/etc, apply them
+            const finalInit: RequestInit = { ...init };
+            return originalFetch(newReq, finalInit);
+          }
+
+          // input is string URL
+          const finalInit = { ...(init || {}), headers: mergedHeaders } as RequestInit;
+          return originalFetch(input as string, finalInit);
+        }
       }
     } catch (e) {
       // swallow so we don't break app fetches
@@ -101,6 +126,23 @@ function setAuthToken(token: string) {
   };
 
   authPatchApplied = true;
+}
+
+function setAuthToken(token: string) {
+  currentAuthToken = token;
+  // ensure fetch is patched so requests pick up tokens from localStorage immediately
+  try {
+    patchFetchOnce();
+  } catch (e) {
+    // ignore
+  }
+}
+
+// Ensure fetch is patched as soon as this module loads on the client
+try {
+  if (typeof window !== "undefined") patchFetchOnce();
+} catch (e) {
+  // ignore
 }
 
 async function ensureTokenForDeviceFlow() {
@@ -131,13 +173,13 @@ async function ensureTokenForDeviceFlow() {
       if (res.ok) {
         const data = await res.json();
         if (data && typeof data.token === "string") {
-          token = data.token;
+          const newToken = data.token;
           try {
-            localStorage.setItem("token", token);
+            localStorage.setItem("token", newToken);
           } catch (e) {
             console.warn("failed to save token in localStorage", e);
           }
-          setAuthToken(token);
+          setAuthToken(newToken);
           return;
         } else {
           console.warn("/api/user/device did not return token");
@@ -157,6 +199,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUserState] = useState<User | null>(null);
 
   useEffect(() => {
+    // Patch fetch immediately so subsequent requests (e.g. /room) include tokens from localStorage
+    try {
+      patchFetchOnce();
+    } catch (e) {
+      // ignore
+    }
+
     // Initialize auth/device/token flow on client mount
     ensureTokenForDeviceFlow();
 
