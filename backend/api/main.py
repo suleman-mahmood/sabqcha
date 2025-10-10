@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import time
 import os
 import sys
 
@@ -75,7 +76,6 @@ app.add_middleware(
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    logger.info("Request path: {}", request.url.path)
     if (
         request.url.path.startswith("/user/device")
         or request.url.path.startswith("/user/login-teacher")
@@ -101,6 +101,29 @@ async def auth_middleware(request: Request, call_next):
 
     request.state.auth_data = auth_data.model_dump(mode="json")
     response = await call_next(request)
+    return response
+
+
+# Middleware to log requests and response times
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+
+    # Log request start
+    logger.info(f"Incoming request: {request.method} {request.url}")
+
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        logger.exception(f"Error while processing request: {e}")
+        raise
+
+    # Log response time
+    duration = time.time() - start_time
+    logger.info(
+        f"Completed {request.method} {request.url} in {duration:.2f}s with status {response.status_code}"
+    )
+
     return response
 
 

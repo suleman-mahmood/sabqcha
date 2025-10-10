@@ -60,9 +60,7 @@ async def insert_user(data_context: UnAuthDataContext, display_name: str) -> str
         return user_id
 
 
-async def insert_device(data_context: UnAuthDataContext, user_id: str) -> str:
-    device_id = internal_id()
-
+async def insert_device(data_context: UnAuthDataContext, user_id: str, device_id: str):
     async with data_context.get_cursor() as cur:
         user_row_id = await id_map.get_user_row_id(cur, user_id)
         assert user_row_id
@@ -77,7 +75,6 @@ async def insert_device(data_context: UnAuthDataContext, user_id: str) -> str:
             (device_id, user_row_id),
         )
         await cur.connection.commit()
-        return device_id
 
 
 async def insert_student(data_context: UnAuthDataContext, user_id: str):

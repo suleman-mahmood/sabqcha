@@ -19,7 +19,7 @@ async def login_anonymous_user(
     if not user_id:
         display_name = utils.get_random_display_name()
         user_id = await user_db.insert_user(data_context, display_name)
-        await user_db.insert_device(data_context, user_id)
+        await user_db.insert_device(data_context, user_id, device_id)
         await user_db.insert_student(data_context, user_id)
 
     session_id = await session_db.insert_session(data_context, user_id)
