@@ -2,7 +2,7 @@ from psycopg import AsyncCursor
 from api.utils import internal_id
 from api.dal import id_map
 from api.models.user_models import AuthData, UserRole
-from api.dependencies import DataContext, UnAuthDataContext
+from api.dependencies import UnAuthDataContext
 
 
 async def insert_session(data_context: UnAuthDataContext, user_id: str) -> str:
@@ -65,8 +65,12 @@ async def get_session(cur: AsyncCursor, session_id: str) -> AuthData | None:
 
     is_teacher = row[0] is not None
     is_student = row[1] is not None
-    assert not (is_student and is_teacher)
-    assert not is_student and not is_teacher
+
+    if is_teacher:
+        assert not is_student
+    if is_student:
+        assert not is_teacher
+
     return AuthData(
         user_id=row[2],
         role=UserRole.STUDENT if is_student else UserRole.TEACHER,

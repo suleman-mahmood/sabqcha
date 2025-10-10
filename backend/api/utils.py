@@ -12,7 +12,10 @@ def internal_id(size: int = 16) -> str:
 
 
 def invite_code() -> str:
-    return internal_id(size=8).lower()
+    code = internal_id()[:8].lower()
+    code = code.replace("0", "a")
+    code = code.replace("o", "b")
+    return f"{code[:4]}-{code[-4:]}"
 
 
 def download_youtube_audio_temp(url: str, temp_dir: str) -> str:

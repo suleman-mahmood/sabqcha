@@ -6,9 +6,27 @@ import { storage } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { Upload } from "lucide-react";
+import { Upload, Copy } from "lucide-react";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/components/UserProvider";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
 
 interface Room {
   id: string;
@@ -71,53 +89,77 @@ export default function Dashboard() {
   const { user, setUser } = useUser();
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  // 🔹 Fetch rooms from /room
-  useEffect(() => {
-    const fetchRooms = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/room");
-        if (!res.ok) {
-          setLoading(false);
-          return;
-        }
-        const data = await res.json();
-        // expected: { user_role, user_diplay_name, rooms: [ { id, display_name, invite_code } ] }
-        if (data.user_diplay_name) {
-          try {
-            localStorage.setItem("display_name", data.user_diplay_name);
-          } catch (e) {}
-          // update context user
-          if (typeof setUser === "function") {
-            setUser({ displayName: data.user_diplay_name, userId: localStorage.getItem("user_id") || "" });
-          }
-        }
-        if (data.user_role) {
-          setUserRole(data.user_role);
-          try {
-            localStorage.setItem("user_role", data.user_role);
-          } catch (e) {}
-        }
-        if (Array.isArray(data.rooms)) {
-          const mapped: Room[] = data.rooms.map((r: any) => ({ id: r.id || r.doc_id || "", display_name: r.display_name || r.title || "Untitled", invite_code: r.invite_code }));
-          setRooms(mapped);
-        }
-      } catch (err) {
-        console.error("Failed to fetch rooms:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchRooms();
-  }, [setUser]);
+  // Dialog state for creating classroom
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [copiedRoomId, setCopiedRoomId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
-  // The existing upload/transcribe logic remains unchanged — keep using the external service
-  const base = process.env.NEXT_PUBLIC_TRANSCRIBE_API_BASE!;
+  // Lecture form state
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [lectureTitle, setLectureTitle] = useState("");
+
+  const showError = (msg: string) => {
+    setErrorMessage(msg);
+    setTimeout(() => setErrorMessage(""), 4000);
+  };
+
+  // 🔹 Fetch rooms from /room
+  const fetchRooms = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/room");
+      if (!res.ok) {
+        setLoading(false);
+        return;
+      }
+      const data = await res.json();
+      // expected: { user_role, user_display_name, rooms: [ { id, display_name, invite_code } ] }
+      if (data.user_display_name) {
+        try {
+          localStorage.setItem("display_name", data.user_display_name);
+        } catch (e) {}
+        // update context user
+        if (typeof setUser === "function") {
+          setUser({ displayName: data.user_display_name, userId: localStorage.getItem("user_id") || "" });
+        }
+      }
+      if (data.user_role) {
+        setUserRole(data.user_role);
+        try {
+          localStorage.setItem("user_role", data.user_role);
+        } catch (e) {}
+      }
+      if (Array.isArray(data.rooms)) {
+        const mapped: Room[] = data.rooms.map((r: any) => ({ id: r.id || r.doc_id || "", display_name: r.display_name || r.title || "Untitled", invite_code: r.invite_code }));
+        setRooms(mapped);
+      }
+    } catch (err) {
+      console.error("Failed to fetch rooms:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRooms();
+  }, []);
+
+  useEffect(() => {
+    if (rooms.length && !selectedRoomId) {
+      setSelectedRoomId(rooms[0].id);
+    }
+  }, [rooms, selectedRoomId]);
 
   const handleUpload = async (file: File) => {
-    const title = window.prompt("Enter a title for this lecture:");
+    const title = lectureTitle.trim();
     if (!title) {
-      alert("Upload cancelled: title is required.");
+      showError("Upload cancelled: title is required.");
+      return;
+    }
+    if (!selectedRoomId) {
+      showError("Please select a room.");
       return;
     }
 
@@ -140,25 +182,21 @@ export default function Dashboard() {
         console.log("✅ File uploaded at:", downloadURL);
 
         try {
-          const res = await fetch(`${base}/transcribe`, {
+          const res = await fetch(`/api/lecture`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ file_path: `lecture/${file.name}`, yt_video_link: null, title, user_id: user?.userId ?? "" }),
+            body: JSON.stringify({ room_id: selectedRoomId, title, file_path: `lecture/${file.name}` }),
           });
-          const data = await res.json();
-          console.log("Transcription started:", data);
-        } catch (err) {
-          console.error("Failed to start transcription:", err);
-        }
-
-        try {
-          const listRes = await fetch(`${base}/transcribe/list`);
-          const listData = await listRes.json();
-          if (listData.data) {
-            // no-op: keep previous behavior for transcribe list
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(text || "Failed to create lecture");
           }
+          const data = await res.json();
+          console.log("Lecture created:", data);
+          setLectureTitle("");
         } catch (err) {
-          console.error("Failed to refresh lectures:", err);
+          console.error("Failed to create lecture:", err);
+          showError("Failed to submit lecture.");
         }
 
         setUploading(false);
@@ -168,50 +206,83 @@ export default function Dashboard() {
 
   const handleYoutubeSubmit = async () => {
     if (!ytLink) {
-      alert("Please enter a YouTube share link.");
+      showError("Please enter a YouTube share link.");
       return;
     }
     let parsed;
     try {
       parsed = new URL(ytLink);
     } catch (e) {
-      alert("Invalid URL.");
+      showError("Invalid URL.");
       return;
     }
 
     if (parsed.hostname !== "youtu.be") {
-      alert("Please provide a youtu.be share URL (use YouTube's Share -> Copy link)." );
+      showError("Please provide a youtu.be share URL (use YouTube's Share -> Copy link).");
       return;
     }
 
-    const title = window.prompt("Enter a title for this lecture:");
+    const title = lectureTitle.trim();
     if (!title) {
-      alert("Submission cancelled: title is required.");
+      showError("Title is required.");
+      return;
+    }
+    if (!selectedRoomId) {
+      showError("Please select a room.");
       return;
     }
 
     setUploading(true);
     try {
-      const res = await fetch(`${base}/transcribe`, {
+      const res = await fetch(`/api/lecture`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ file_path: null, yt_video_link: ytLink, title, user_id: user?.userId ?? "" }),
+        body: JSON.stringify({ room_id: selectedRoomId, title, yt_video_link: ytLink }),
       });
-      const data = await res.json();
-      console.log("Transcription started (yt):", data);
-
-      const listRes = await fetch(`${base}/transcribe/list`);
-      const listData = await listRes.json();
-      if (listData.data) {
-        // keep existing behavior
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Failed to create lecture");
       }
+      const data = await res.json();
+      console.log("Lecture created (yt):", data);
 
       setYtLink("");
     } catch (err) {
       console.error("Failed to submit YouTube link:", err);
-      alert("Failed to submit YouTube link.");
+      showError("Failed to submit YouTube link.");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const createRoom = async () => {
+    const title = newTitle.trim();
+    if (!title) {
+      showError("Title is required.");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const res = await fetch("/api/room", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ display_name: title }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Failed to create room");
+      }
+
+      // refresh rooms list from API
+      await fetchRooms();
+      setDialogOpen(false);
+      setNewTitle("");
+    } catch (err) {
+      console.error("Failed to create room:", err);
+      showError("Failed to create classroom.");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -239,26 +310,52 @@ export default function Dashboard() {
                   <h3 className="text-lg font-semibold mb-1">Add Lecture</h3>
                   <p className="text-sm text-muted-foreground mb-4">Choose one option to add a lecture — upload audio OR submit a YouTube link.</p>
 
-                  <div className="inline-flex rounded-md bg-muted p-1 mb-4">
-                    <button
-                      type="button"
-                      className={`px-3 py-1 rounded-md text-sm ${uploadMode === 'upload' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
-                      onClick={() => setUploadMode('upload')}
-                    >
-                      Upload Audio
-                    </button>
-                    <button
-                      type="button"
-                      className={`px-3 py-1 rounded-md text-sm ${uploadMode === 'youtube' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
-                      onClick={() => setUploadMode('youtube')}
-                    >
-                      YouTube Link
-                    </button>
+                  <div className="mb-4 space-y-3">
+                    <div className="flex flex-col sm:flex-row items-start gap-3">
+                      <Select value={selectedRoomId ?? ""} onValueChange={(v) => setSelectedRoomId(v)}>
+                        <SelectTrigger size="sm">
+                          <SelectValue placeholder="Select room" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {rooms.map((r) => (
+                            <SelectItem key={r.id} value={r.id}>
+                              {r.display_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <input
+                        required
+                        type="text"
+                        value={lectureTitle}
+                        onChange={(e) => setLectureTitle(e.target.value)}
+                        placeholder="Lecture title*"
+                        className="border border-input px-3 py-2 rounded-md w-full sm:w-80 text-sm"
+                      />
+                    </div>
+
+                    <div className="inline-flex rounded-md bg-muted p-1">
+                      <button
+                        type="button"
+                        className={`px-3 py-1 rounded-md text-sm ${uploadMode === 'upload' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                        onClick={() => setUploadMode('upload')}
+                      >
+                        Upload Audio
+                      </button>
+                      <button
+                        type="button"
+                        className={`px-3 py-1 rounded-md text-sm ${uploadMode === 'youtube' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                        onClick={() => setUploadMode('youtube')}
+                      >
+                        YouTube Link
+                      </button>
+                    </div>
                   </div>
 
                   {uploadMode === 'upload' && (
                     <div className="flex flex-col sm:flex-row items-center gap-3">
-                      <Button asChild disabled={uploading}>
+                      <Button disabled={uploading || !lectureTitle || !selectedRoomId}>
                         <label className="cursor-pointer">
                           {uploading ? 'Uploading...' : 'Select Audio File'}
                           <input
@@ -284,7 +381,7 @@ export default function Dashboard() {
                         className="border border-input px-3 py-2 rounded-md w-full sm:w-80 text-sm"
                         disabled={uploading}
                       />
-                      <Button variant="outline" disabled={uploading} onClick={handleYoutubeSubmit}>
+                      <Button disabled={uploading || !lectureTitle || !selectedRoomId} onClick={handleYoutubeSubmit}>
                         {uploading ? 'Submitting...' : 'Submit'}
                       </Button>
                     </div>
@@ -298,6 +395,14 @@ export default function Dashboard() {
                       <p className="text-xs text-muted-foreground mt-2">Uploading... {progress}%</p>
                     </div>
                   )}
+
+                  {errorMessage && (
+                    <Alert variant="destructive" className="mt-3">
+                      <AlertTitle>Error</AlertTitle>
+                      <AlertDescription>{errorMessage}</AlertDescription>
+                    </Alert>
+                  )}
+
                 </div>
               </div>
             </CardContent>
@@ -318,7 +423,41 @@ export default function Dashboard() {
         {/* 🔸 Room List */}
         <Card className="p-6 mb-8">
           <CardContent>
-            <h2 className="text-xl font-semibold mb-4">Rooms</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Rooms</h2>
+
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm">Create Classroom</Button>
+                </DialogTrigger>
+
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create Classroom</DialogTitle>
+                    <DialogDescription>Enter a title for the new classroom.</DialogDescription>
+                  </DialogHeader>
+
+                  <div className="mt-2">
+                    <label className="text-sm block mb-1">Title</label>
+                    <input
+                      value={newTitle}
+                      onChange={(e) => setNewTitle(e.target.value)}
+                      className="w-full border border-input px-3 py-2 rounded-md"
+                      placeholder="Classroom title"
+                    />
+                  </div>
+
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button onClick={createRoom} disabled={creating}>
+                      {creating ? "Creating..." : "Create"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
 
             {loading ? (
               <div className="flex flex-col items-center">
@@ -329,29 +468,39 @@ export default function Dashboard() {
               <p className="text-muted-foreground text-sm">No rooms found yet.</p>
             ) : (
               <div className="space-y-4">
-                <div className="p-4 rounded-lg bg-muted border-border text-center">
-                  <p className="text-foreground font-medium mb-2">
-                    🎧 Get Started — Select a room below to view its MCQs
-                  </p>
-                </div>
+                {userRole !== "TEACHER" && (
+                  <div className="p-4 rounded-lg bg-muted border-border text-center">
+                    <p className="text-foreground font-medium mb-2">
+                      🎧 Get Started — Select a room below to view its MCQs
+                    </p>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {rooms.map((room) => (
                     <Card
                       key={room.id}
-                      className="cursor-pointer transition-all hover:shadow-lg"
-                      onClick={() => router.push(`/mcqs/${room.id}`)}
+                      className={`transition-all hover:shadow-lg ${userRole === "TEACHER" ? 'opacity-80 cursor-not-allowed' : 'cursor-pointer'}`}
+                      onClick={userRole !== "TEACHER" ? () => router.push(`/mcqs/${room.id}`) : undefined}
                     >
                       <CardContent className="p-4 text-center">
                         <p className="font-semibold text-foreground truncate">
                           {room.display_name || "Untitled Room"}
                         </p>
-                        <p className="text-xs text-muted-foreground truncate mt-1">
-                          ID: {room.id}
-                        </p>
-                        <Button className="mt-3 w-full" variant="outline">
-                          View MCQs
-                        </Button>
+                        <div className="text-xs text-muted-foreground truncate mt-1 flex items-center justify-center gap-2">
+                          <span className="truncate">Invite Code: {room.invite_code ?? room.id}</span>
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); const text = room.invite_code ?? room.id; try { navigator.clipboard.writeText(text); setCopiedRoomId(room.id); setTimeout(() => setCopiedRoomId(null), 2000); } catch (err) { console.error('Copy failed', err); showError('Failed to copy invite code.'); } }} aria-label="Copy invite code">
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          {copiedRoomId === room.id && (
+                            <span className="text-xs text-success">Copied</span>
+                          )}
+                        </div>
+                        {userRole !== "TEACHER" && (
+                          <Button className="mt-3 w-full" variant="outline">
+                            View MCQs
+                          </Button>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
