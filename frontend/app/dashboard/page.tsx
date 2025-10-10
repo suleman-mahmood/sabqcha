@@ -387,158 +387,166 @@ export default function Dashboard() {
     return (
         <div className="min-h-screen bg-background p-6">
             <div className="max-w-5xl mx-auto">
-                <div className="flex justify-end items-center mb-4 space-x-3">
-                    <span className="mr-3 text-sm text-muted-foreground">Hi, {user?.displayName}</span>
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                        <span className="text-sm text-muted-foreground">Hi, {user?.displayName}</span>
+                    </div>
 
-                    {/* Invite code button in header */}
-                    <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-                        <DialogTrigger asChild>
-                            <Button size="sm" variant="ghost">Add Code</Button>
-                        </DialogTrigger>
+                    <div className="flex items-center space-x-3">
+                        {/* Invite code button in header */}
+                        {userRole !== "TEACHER" && (
+                            <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+                                <DialogTrigger asChild>
+                                    <Button size="sm" variant="ghost">Add Code</Button>
+                                </DialogTrigger>
 
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Enter Invite Code</DialogTitle>
-                                <DialogDescription>Provide an invite code to join a classroom.</DialogDescription>
-                            </DialogHeader>
-                            <form onSubmit={handleJoinInvite} className="mt-4 grid gap-3">
-                                <label className="text-sm">
-                                    Invite Code
-                                    <input className="mt-1 w-full rounded-md border px-3 py-2" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} required />
-                                </label>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Enter Invite Code</DialogTitle>
+                                        <DialogDescription>Provide an invite code to join a classroom.</DialogDescription>
+                                    </DialogHeader>
+                                    <form onSubmit={handleJoinInvite} className="mt-4 grid gap-3">
+                                        <label className="text-sm">
+                                            Invite Code
+                                            <input className="mt-1 w-full rounded-md border px-3 py-2" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} required />
+                                        </label>
 
-                                {inviteError && <div className="text-sm text-destructive">{inviteError}</div>}
+                                        {inviteError && <div className="text-sm text-destructive">{inviteError}</div>}
 
-                                <DialogFooter>
-                                    <DialogClose asChild>
-                                        <Button variant="outline">Cancel</Button>
-                                    </DialogClose>
-                                    <Button type="submit" disabled={inviteLoading}>{inviteLoading ? <Spinner /> : 'Join'}</Button>
-                                </DialogFooter>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
+                                        <DialogFooter>
+                                            <DialogClose asChild>
+                                                <Button variant="outline">Cancel</Button>
+                                            </DialogClose>
+                                            <Button type="submit" disabled={inviteLoading}>{inviteLoading ? <Spinner /> : 'Join'}</Button>
+                                        </DialogFooter>
+                                    </form>
+                                </DialogContent>
+                            </Dialog>
+                        )}
 
-                    {/* Login button or Logout */}
-                    {!isLoggedIn ? (
-                        <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
-                            <DialogTrigger asChild>
-                                <Button size="sm">Login</Button>
-                            </DialogTrigger>
+                        {/* Login button or Logout */}
+                        {!isLoggedIn ? (
+                            <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+                                <DialogTrigger asChild>
+                                    <Button size="sm">Login</Button>
+                                </DialogTrigger>
 
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Teacher Login</DialogTitle>
-                                    <DialogDescription>Enter your email and password.</DialogDescription>
-                                </DialogHeader>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Teacher Login</DialogTitle>
+                                        <DialogDescription>Enter your email and password.</DialogDescription>
+                                    </DialogHeader>
 
-                                <form onSubmit={handleLogin} className="mt-4 grid gap-3">
-                                    <label className="text-sm">
-                                        Email
-                                        <input className="mt-1 w-full rounded-md border px-3 py-2" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} type="email" required />
-                                    </label>
-                                    <label className="text-sm">
-                                        Password
-                                        <input className="mt-1 w-full rounded-md border px-3 py-2" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} type="password" required />
-                                    </label>
+                                    <form onSubmit={handleLogin} className="mt-4 grid gap-3">
+                                        <label className="text-sm">
+                                            Email
+                                            <input className="mt-1 w-full rounded-md border px-3 py-2" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} type="email" required />
+                                        </label>
+                                        <label className="text-sm">
+                                            Password
+                                            <input className="mt-1 w-full rounded-md border px-3 py-2" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} type="password" required />
+                                        </label>
 
-                                    {loginError && <div className="text-sm text-destructive">{loginError}</div>}
+                                        {loginError && <div className="text-sm text-destructive">{loginError}</div>}
 
-                                    <DialogFooter>
-                                        <DialogClose asChild>
-                                            <Button variant="outline">Cancel</Button>
-                                        </DialogClose>
-                                        <Button type="submit" disabled={loginLoading}>{loginLoading ? <Spinner /> : 'Login'}</Button>
-                                    </DialogFooter>
-                                </form>
-                            </DialogContent>
-                        </Dialog>
-                    ) : (
-                        <Button size="sm" variant="ghost" onClick={logout}>Logout</Button>
-                    )}
+                                        <DialogFooter>
+                                            <DialogClose asChild>
+                                                <Button variant="outline">Cancel</Button>
+                                            </DialogClose>
+                                            <Button type="submit" disabled={loginLoading}>{loginLoading ? <Spinner /> : 'Login'}</Button>
+                                        </DialogFooter>
+                                    </form>
+                                </DialogContent>
+                            </Dialog>
+                        ) : (
+                            <Button size="sm" variant="ghost" onClick={logout}>Logout</Button>
+                        )}
 
-                    <ThemeToggle />
+                        <ThemeToggle />
+                    </div>
                 </div>
                 {/* 🔹 Title */}
                 <h1 className="text-3xl font-bold text-center mb-8">Dashboard</h1>
 
                 {/* 🔸 Upload & Leaderboards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    {/* Upload card */}
-                    <Card className="md:col-span-2 p-6">
-                        <CardContent>
-                            <div className="flex flex-col sm:flex-row items-start gap-4">
-                                <div className="p-3 bg-accent rounded-lg self-center sm:self-start">
-                                    <Upload />
-                                </div>
-
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-semibold mb-1">Add Lecture</h3>
-                                    <p className="text-sm text-muted-foreground mb-4">Upload audio to add a lecture.</p>
-
-                                    <div className="mb-4 space-y-3">
-                                        <div className="flex flex-col sm:flex-row items-start gap-3">
-                                            <Select value={selectedRoomId ?? ""} onValueChange={(v) => setSelectedRoomId(v)}>
-                                                <SelectTrigger size="sm">
-                                                    <SelectValue placeholder="Select room" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {rooms.map((r) => (
-                                                        <SelectItem key={r.id} value={r.id}>
-                                                            {r.display_name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-
-                                            <input
-                                                required
-                                                type="text"
-                                                value={lectureTitle}
-                                                onChange={(e) => setLectureTitle(e.target.value)}
-                                                placeholder="Lecture title*"
-                                                className="border border-input px-3 py-2 rounded-md w-full sm:w-80 text-sm"
-                                            />
-                                        </div>
-
+                    {userRole === "TEACHER" && (
+                        /* Upload card */
+                        <Card className="md:col-span-2 p-6">
+                            <CardContent>
+                                <div className="flex flex-col sm:flex-row items-start gap-4">
+                                    <div className="p-3 bg-accent rounded-lg self-center sm:self-start">
+                                        <Upload />
                                     </div>
 
-                                    <div className="flex flex-col sm:flex-row items-center gap-3">
-                                        <Button disabled={uploading || !lectureTitle || !selectedRoomId}>
-                                            <label className="cursor-pointer">
-                                                {uploading ? 'Uploading...' : 'Select Audio File'}
+                                    <div className="flex-1">
+                                        <h3 className="text-lg font-semibold mb-1">Add Lecture</h3>
+                                        <p className="text-sm text-muted-foreground mb-4">Upload audio to add a lecture.</p>
+
+                                        <div className="mb-4 space-y-3">
+                                            <div className="flex flex-col sm:flex-row items-start gap-3">
+                                                <Select value={selectedRoomId ?? ""} onValueChange={(v) => setSelectedRoomId(v)}>
+                                                    <SelectTrigger size="sm">
+                                                        <SelectValue placeholder="Select room" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {rooms.map((r) => (
+                                                            <SelectItem key={r.id} value={r.id}>
+                                                                {r.display_name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+
                                                 <input
-                                                    type="file"
-                                                    accept="audio/*"
-                                                    hidden
-                                                    onChange={(e) => e.target.files && handleUpload(e.target.files[0])}
+                                                    required
+                                                    type="text"
+                                                    value={lectureTitle}
+                                                    onChange={(e) => setLectureTitle(e.target.value)}
+                                                    placeholder="Lecture title*"
+                                                    className="border border-input px-3 py-2 rounded-md w-full sm:w-80 text-sm"
                                                 />
-                                            </label>
-                                        </Button>
-
-                                        <p className="text-sm text-muted-foreground">Supported: mp3</p>
-                                    </div>
-
-                                    {uploading && (
-                                        <div className="mt-4">
-                                            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                                                <div className="h-full bg-primary" style={{ width: `${progress}%` }} />
                                             </div>
-                                            <p className="text-xs text-muted-foreground mt-2">Uploading... {progress}%</p>
+
                                         </div>
-                                    )}
 
-                                    {errorMessage && (
-                                        <Alert variant="destructive" className="mt-3">
-                                            <AlertTitle>Error</AlertTitle>
-                                            <AlertDescription>{errorMessage}</AlertDescription>
-                                        </Alert>
-                                    )}
+                                        <div className="flex flex-col sm:flex-row items-center gap-3">
+                                            <Button disabled={uploading || !lectureTitle || !selectedRoomId}>
+                                                <label className="cursor-pointer">
+                                                    {uploading ? 'Uploading...' : 'Select Audio File'}
+                                                    <input
+                                                        type="file"
+                                                        accept="audio/*"
+                                                        hidden
+                                                        onChange={(e) => e.target.files && handleUpload(e.target.files[0])}
+                                                    />
+                                                </label>
+                                            </Button>
 
+                                            <p className="text-sm text-muted-foreground">Supported: mp3</p>
+                                        </div>
+
+                                        {uploading && (
+                                            <div className="mt-4">
+                                                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                                                    <div className="h-full bg-primary" style={{ width: `${progress}%` }} />
+                                                </div>
+                                                <p className="text-xs text-muted-foreground mt-2">Uploading... {progress}%</p>
+                                            </div>
+                                        )}
+
+                                        {errorMessage && (
+                                            <Alert variant="destructive" className="mt-3">
+                                                <AlertTitle>Error</AlertTitle>
+                                                <AlertDescription>{errorMessage}</AlertDescription>
+                                            </Alert>
+                                        )}
+
+                                    </div>
                                 </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     {/* Leaderboards card */}
                     {!loading && userRole !== "TEACHER" && (
@@ -558,37 +566,39 @@ export default function Dashboard() {
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-xl font-semibold">Rooms</h2>
 
-                            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                                <DialogTrigger asChild>
-                                    <Button size="sm">Create Classroom</Button>
-                                </DialogTrigger>
+                            {userRole === "TEACHER" && (
+                                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button size="sm">Create Classroom</Button>
+                                    </DialogTrigger>
 
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Create Classroom</DialogTitle>
-                                        <DialogDescription>Enter a title for the new classroom.</DialogDescription>
-                                    </DialogHeader>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Create Classroom</DialogTitle>
+                                            <DialogDescription>Enter a title for the new classroom.</DialogDescription>
+                                        </DialogHeader>
 
-                                    <div className="mt-2">
-                                        <label className="text-sm block mb-1">Title</label>
-                                        <input
-                                            value={newTitle}
-                                            onChange={(e) => setNewTitle(e.target.value)}
-                                            className="w-full border border-input px-3 py-2 rounded-md"
-                                            placeholder="Classroom title"
-                                        />
-                                    </div>
+                                        <div className="mt-2">
+                                            <label className="text-sm block mb-1">Title</label>
+                                            <input
+                                                value={newTitle}
+                                                onChange={(e) => setNewTitle(e.target.value)}
+                                                className="w-full border border-input px-3 py-2 rounded-md"
+                                                placeholder="Classroom title"
+                                            />
+                                        </div>
 
-                                    <DialogFooter>
-                                        <DialogClose asChild>
-                                            <Button variant="outline">Cancel</Button>
-                                        </DialogClose>
-                                        <Button onClick={createRoom} disabled={creating}>
-                                            {creating ? "Creating..." : "Create"}
-                                        </Button>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
+                                        <DialogFooter>
+                                            <DialogClose asChild>
+                                                <Button variant="outline">Cancel</Button>
+                                            </DialogClose>
+                                            <Button onClick={createRoom} disabled={creating}>
+                                                {creating ? "Creating..." : "Create"}
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            )}
                         </div>
 
                         {loading ? (

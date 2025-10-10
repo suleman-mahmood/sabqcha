@@ -29,7 +29,7 @@ async def insert_room(data_context: DataContext, display_name: str, teacher_id: 
 
 async def join_room(data_context: DataContext, room_id: str, student_id: str):
     async with data_context.get_cursor() as cur:
-        student_row_id = await id_map.get_teacher_row_id(cur, student_id)
+        student_row_id = await id_map.get_student_row_id(cur, student_id)
         assert student_row_id
 
         room_row_id = await id_map.get_room_row_id(cur, room_id)
