@@ -1,7 +1,8 @@
 from api.dal import id_map
 from api.dependencies import DataContext
-from api.models.lecture_models import Lecture
+from api.models.lecture_models import Lecture, LectureEntry
 from api.utils import internal_id
+from api.models.task_models import TaskSet
 
 
 async def insert_lecture(
@@ -53,6 +54,47 @@ async def get_lecture(data_context: DataContext, lecture_id: str) -> Lecture | N
     return Lecture(
         id=row[0], room_id=row[1], file_path=row[2], title=row[3], transcribed_content=row[4]
     )
+
+
+async def list_lectures(data_context: DataContext, room_id: str) -> list[LectureEntry]:
+    async with data_context.get_cursor() as cur:
+        room_row_id = await id_map.get_room_row_id(cur, room_id)
+        assert room_row_id
+
+        await cur.execute(
+            """
+            select
+                l.public_id as id,
+                l.title,
+                coalesce(
+                    json_agg(
+                        json_build_object(
+                            'id', ts.public_id
+                            'day', ts.day
+                        )
+                    ),
+                    '[]'
+                ) as task_sets
+            from
+                lecture l
+                left join task_set ts
+                    on ts.lecture_row_id = l.row_id
+            where
+                l.room_row_id = %s
+            group by
+                l.public_id, l.title
+            group by l.created_at desc
+            )
+            """,
+            (room_row_id,),
+        )
+        rows = await cur.fetchall()
+    return [
+        LectureEntry(
+            id=r[0], title=r[1], task_sets=[TaskSet(id=ts["id"], day=ts["day"]) for ts in r[2]]
+        )
+        for r in rows
+    ]
 
 
 async def add_transcription(data_context: DataContext, lecture_id: str, transcript: str):

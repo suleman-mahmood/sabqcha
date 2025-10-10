@@ -1,4 +1,5 @@
 from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from google.cloud.storage import Bucket
 from openai import OpenAI
@@ -42,5 +43,7 @@ async def get_lecture(data_context: DataContext = Depends(get_data_context)):
 
 
 @router.get("/room/{room_id}")
-async def list_lectures(data_context: DataContext = Depends(get_data_context)):
-    pass
+async def list_lectures(room_id: str, data_context: DataContext = Depends(get_data_context)):
+    lectures = await lecture_db.list_lectures(data_context, room_id)
+
+    return JSONResponse({"lectures": [le.model_dump(mode="json") for le in lectures]})
