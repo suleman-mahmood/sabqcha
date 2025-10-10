@@ -83,8 +83,6 @@ export default function Dashboard() {
   const [progress, setProgress] = useState(0);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
-  const [ytLink, setYtLink] = useState("");
-  const [uploadMode, setUploadMode] = useState<"upload" | "youtube">("upload");
   const router = useRouter();
   const { user, setUser } = useUser();
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -204,57 +202,6 @@ export default function Dashboard() {
     );
   };
 
-  const handleYoutubeSubmit = async () => {
-    if (!ytLink) {
-      showError("Please enter a YouTube share link.");
-      return;
-    }
-    let parsed;
-    try {
-      parsed = new URL(ytLink);
-    } catch (e) {
-      showError("Invalid URL.");
-      return;
-    }
-
-    if (parsed.hostname !== "youtu.be") {
-      showError("Please provide a youtu.be share URL (use YouTube's Share -> Copy link).");
-      return;
-    }
-
-    const title = lectureTitle.trim();
-    if (!title) {
-      showError("Title is required.");
-      return;
-    }
-    if (!selectedRoomId) {
-      showError("Please select a room.");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const res = await fetch(`/api/lecture`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ room_id: selectedRoomId, title, yt_video_link: ytLink }),
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Failed to create lecture");
-      }
-      const data = await res.json();
-      console.log("Lecture created (yt):", data);
-
-      setYtLink("");
-    } catch (err) {
-      console.error("Failed to submit YouTube link:", err);
-      showError("Failed to submit YouTube link.");
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const createRoom = async () => {
     const title = newTitle.trim();
     if (!title) {
@@ -298,7 +245,7 @@ export default function Dashboard() {
 
         {/* 🔸 Upload & Leaderboards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          {/* Upload / YouTube card */}
+          {/* Upload card */}
           <Card className="md:col-span-2 p-6">
             <CardContent>
               <div className="flex flex-col sm:flex-row items-start gap-4">
@@ -308,7 +255,7 @@ export default function Dashboard() {
 
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold mb-1">Add Lecture</h3>
-                  <p className="text-sm text-muted-foreground mb-4">Choose one option to add a lecture — upload audio OR submit a YouTube link.</p>
+                  <p className="text-sm text-muted-foreground mb-4">Upload audio to add a lecture.</p>
 
                   <div className="mb-4 space-y-3">
                     <div className="flex flex-col sm:flex-row items-start gap-3">
@@ -335,57 +282,23 @@ export default function Dashboard() {
                       />
                     </div>
 
-                    <div className="inline-flex rounded-md bg-muted p-1">
-                      <button
-                        type="button"
-                        className={`px-3 py-1 rounded-md text-sm ${uploadMode === 'upload' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
-                        onClick={() => setUploadMode('upload')}
-                      >
-                        Upload Audio
-                      </button>
-                      <button
-                        type="button"
-                        className={`px-3 py-1 rounded-md text-sm ${uploadMode === 'youtube' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
-                        onClick={() => setUploadMode('youtube')}
-                      >
-                        YouTube Link
-                      </button>
-                    </div>
                   </div>
 
-                  {uploadMode === 'upload' && (
-                    <div className="flex flex-col sm:flex-row items-center gap-3">
-                      <Button disabled={uploading || !lectureTitle || !selectedRoomId}>
-                        <label className="cursor-pointer">
-                          {uploading ? 'Uploading...' : 'Select Audio File'}
-                          <input
-                            type="file"
-                            accept="audio/*"
-                            hidden
-                            onChange={(e) => e.target.files && handleUpload(e.target.files[0])}
-                          />
-                        </label>
-                      </Button>
+                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                    <Button disabled={uploading || !lectureTitle || !selectedRoomId}>
+                      <label className="cursor-pointer">
+                        {uploading ? 'Uploading...' : 'Select Audio File'}
+                        <input
+                          type="file"
+                          accept="audio/*"
+                          hidden
+                          onChange={(e) => e.target.files && handleUpload(e.target.files[0])}
+                        />
+                      </label>
+                    </Button>
 
-                      <p className="text-sm text-muted-foreground">Supported: mp3</p>
-                    </div>
-                  )}
-
-                  {uploadMode === 'youtube' && (
-                    <div className="flex flex-col sm:flex-row items-center gap-2">
-                      <input
-                        type="text"
-                        value={ytLink}
-                        onChange={(e) => setYtLink(e.target.value)}
-                        placeholder="Paste youtu.be share link (eg. https://youtu.be/ID?si=...)"
-                        className="border border-input px-3 py-2 rounded-md w-full sm:w-80 text-sm"
-                        disabled={uploading}
-                      />
-                      <Button disabled={uploading || !lectureTitle || !selectedRoomId} onClick={handleYoutubeSubmit}>
-                        {uploading ? 'Submitting...' : 'Submit'}
-                      </Button>
-                    </div>
-                  )}
+                    <p className="text-sm text-muted-foreground">Supported: mp3</p>
+                  </div>
 
                   {uploading && (
                     <div className="mt-4">
