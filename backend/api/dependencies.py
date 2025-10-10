@@ -1,10 +1,14 @@
+from contextlib import asynccontextmanager
 import os
+from fastapi import Request
 import firebase_admin
 from loguru import logger
 
 from psycopg_pool import AsyncConnectionPool
 from firebase_admin import credentials, storage, firestore
 from openai import OpenAI
+
+from api.models.user_models import AuthData, UserRole
 
 
 # Setup PG
@@ -19,6 +23,25 @@ _db = firestore.client()
 
 # Setup OpenAI
 _openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+
+class DataContext:
+    def __init__(self, user_id: str, role: UserRole) -> None:
+        self.user_id = user_id
+        self.user_role = role
+
+    @asynccontextmanager
+    async def get_cursor(self):
+        assert pool
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                yield cur
+                await cur.connection.commit()
+
+
+def get_data_context(request: Request) -> DataContext:
+    auth_data: AuthData = AuthData.model_validate(request.state.auth_data)
+    return DataContext(user_id=auth_data.user_id, role=auth_data.role)
 
 
 async def get_cursor():

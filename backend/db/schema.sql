@@ -1,4 +1,4 @@
-\restrict XaBKS0kxxTij9fyCT9whme5fM2Ut7SapoqJ4c76IQSOYAdrmJlz3OFje1iBc6ma
+\restrict xpl7StNDESlB8ufOo2oTjrgDqdNYuhzsyzPbGaJTIbg6rIMhQiLG5OXWeYGOOnW
 
 -- Dumped from database version 16.4 (Debian 16.4-1.pgdg120+1)
 -- Dumped by pg_dump version 17.6
@@ -15,31 +15,97 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+--
+-- Name: week_day; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.week_day AS ENUM (
+    'MONDAY',
+    'TUESDAY',
+    'WEDNESDAY',
+    'THURSDAY',
+    'FRIDAY'
+);
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
 
 --
--- Name: mcq; Type: TABLE; Schema: public; Owner: -
+-- Name: device_user; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.mcq (
-    id integer NOT NULL,
+CREATE TABLE public.device_user (
+    id bigint NOT NULL,
+    device_id text NOT NULL,
+    sabqcha_user_row_id bigint NOT NULL
+);
+
+
+--
+-- Name: device_user_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.device_user ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.device_user_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: lecture; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.lecture (
+    id bigint NOT NULL,
     public_id text NOT NULL,
-    transcription_row_id integer NOT NULL,
-    question text NOT NULL,
-    options text[] NOT NULL,
-    answer text NOT NULL,
+    room_row_id bigint NOT NULL,
+    file_path text NOT NULL,
+    title text NOT NULL,
+    transcribed_content text,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
 --
--- Name: mcq_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: lecture_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-ALTER TABLE public.mcq ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.mcq_id_seq
+ALTER TABLE public.lecture ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.lecture_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: room; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.room (
+    id bigint NOT NULL,
+    public_id text NOT NULL,
+    display_name text NOT NULL,
+    invite_code text NOT NULL,
+    teacher_row_id bigint NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: room_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.room ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.room_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -53,10 +119,11 @@ ALTER TABLE public.mcq ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 --
 
 CREATE TABLE public.sabqcha_user (
-    id integer NOT NULL,
+    id bigint NOT NULL,
     public_id text NOT NULL,
     display_name text NOT NULL,
-    score integer DEFAULT 0 NOT NULL,
+    email text,
+    password text,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
@@ -85,26 +152,23 @@ CREATE TABLE public.schema_migrations (
 
 
 --
--- Name: transcription; Type: TABLE; Schema: public; Owner: -
+-- Name: session; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.transcription (
-    id integer NOT NULL,
+CREATE TABLE public.session (
+    id bigint NOT NULL,
     public_id text NOT NULL,
-    file_path text NOT NULL,
-    title text NOT NULL,
-    sabqcha_user_row_id integer NOT NULL,
-    transcribed_content text NOT NULL,
+    sabqcha_user_row_id bigint NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
 --
--- Name: transcription_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: session_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-ALTER TABLE public.transcription ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.transcription_id_seq
+ALTER TABLE public.session ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.session_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -114,19 +178,165 @@ ALTER TABLE public.transcription ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTIT
 
 
 --
--- Name: mcq mcq_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: student; Type: TABLE; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.mcq
-    ADD CONSTRAINT mcq_pkey PRIMARY KEY (id);
+CREATE TABLE public.student (
+    id bigint NOT NULL,
+    sabqcha_user_row_id bigint NOT NULL,
+    score bigint DEFAULT 0 NOT NULL
+);
 
 
 --
--- Name: mcq mcq_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: student_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.mcq
-    ADD CONSTRAINT mcq_public_id_key UNIQUE (public_id);
+ALTER TABLE public.student ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.student_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: student_room; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.student_room (
+    student_row_id bigint NOT NULL,
+    room_row_id bigint NOT NULL
+);
+
+
+--
+-- Name: task; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.task (
+    id bigint NOT NULL,
+    public_id text NOT NULL,
+    task_set_row_id bigint NOT NULL,
+    question text NOT NULL,
+    answer text NOT NULL,
+    options text[] NOT NULL
+);
+
+
+--
+-- Name: task_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.task ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.task_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: task_set; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.task_set (
+    id bigint NOT NULL,
+    public_id text NOT NULL,
+    lecture_row_id bigint NOT NULL,
+    day public.week_day NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: task_set_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.task_set ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.task_set_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: teacher; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.teacher (
+    id bigint NOT NULL,
+    sabqcha_user_row_id bigint NOT NULL
+);
+
+
+--
+-- Name: teacher_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.teacher ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.teacher_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: device_user device_user_device_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.device_user
+    ADD CONSTRAINT device_user_device_id_key UNIQUE (device_id);
+
+
+--
+-- Name: device_user device_user_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.device_user
+    ADD CONSTRAINT device_user_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: lecture lecture_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lecture
+    ADD CONSTRAINT lecture_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: lecture lecture_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lecture
+    ADD CONSTRAINT lecture_public_id_key UNIQUE (public_id);
+
+
+--
+-- Name: room room_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.room
+    ADD CONSTRAINT room_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: room room_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.room
+    ADD CONSTRAINT room_public_id_key UNIQUE (public_id);
 
 
 --
@@ -154,42 +364,162 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
--- Name: transcription transcription_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: session session_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.transcription
-    ADD CONSTRAINT transcription_pkey PRIMARY KEY (id);
-
-
---
--- Name: transcription transcription_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transcription
-    ADD CONSTRAINT transcription_public_id_key UNIQUE (public_id);
+ALTER TABLE ONLY public.session
+    ADD CONSTRAINT session_pkey PRIMARY KEY (id);
 
 
 --
--- Name: mcq mcq_transcription_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: session session_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.mcq
-    ADD CONSTRAINT mcq_transcription_row_id_fkey FOREIGN KEY (transcription_row_id) REFERENCES public.transcription(id);
+ALTER TABLE ONLY public.session
+    ADD CONSTRAINT session_public_id_key UNIQUE (public_id);
 
 
 --
--- Name: transcription transcription_sabqcha_user_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: student student_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.transcription
-    ADD CONSTRAINT transcription_sabqcha_user_row_id_fkey FOREIGN KEY (sabqcha_user_row_id) REFERENCES public.sabqcha_user(id);
+ALTER TABLE ONLY public.student
+    ADD CONSTRAINT student_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: student_room student_room_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.student_room
+    ADD CONSTRAINT student_room_pkey PRIMARY KEY (student_row_id, room_row_id);
+
+
+--
+-- Name: task task_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.task
+    ADD CONSTRAINT task_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: task task_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.task
+    ADD CONSTRAINT task_public_id_key UNIQUE (public_id);
+
+
+--
+-- Name: task_set task_set_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.task_set
+    ADD CONSTRAINT task_set_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: task_set task_set_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.task_set
+    ADD CONSTRAINT task_set_public_id_key UNIQUE (public_id);
+
+
+--
+-- Name: teacher teacher_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.teacher
+    ADD CONSTRAINT teacher_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: device_user device_user_sabqcha_user_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.device_user
+    ADD CONSTRAINT device_user_sabqcha_user_row_id_fkey FOREIGN KEY (sabqcha_user_row_id) REFERENCES public.sabqcha_user(id);
+
+
+--
+-- Name: lecture lecture_room_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lecture
+    ADD CONSTRAINT lecture_room_row_id_fkey FOREIGN KEY (room_row_id) REFERENCES public.room(id);
+
+
+--
+-- Name: room room_teacher_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.room
+    ADD CONSTRAINT room_teacher_row_id_fkey FOREIGN KEY (teacher_row_id) REFERENCES public.teacher(id);
+
+
+--
+-- Name: session session_sabqcha_user_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.session
+    ADD CONSTRAINT session_sabqcha_user_row_id_fkey FOREIGN KEY (sabqcha_user_row_id) REFERENCES public.sabqcha_user(id);
+
+
+--
+-- Name: student_room student_room_room_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.student_room
+    ADD CONSTRAINT student_room_room_row_id_fkey FOREIGN KEY (room_row_id) REFERENCES public.room(id);
+
+
+--
+-- Name: student_room student_room_student_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.student_room
+    ADD CONSTRAINT student_room_student_row_id_fkey FOREIGN KEY (student_row_id) REFERENCES public.student(id);
+
+
+--
+-- Name: student student_sabqcha_user_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.student
+    ADD CONSTRAINT student_sabqcha_user_row_id_fkey FOREIGN KEY (sabqcha_user_row_id) REFERENCES public.sabqcha_user(id);
+
+
+--
+-- Name: task_set task_set_lecture_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.task_set
+    ADD CONSTRAINT task_set_lecture_row_id_fkey FOREIGN KEY (lecture_row_id) REFERENCES public.lecture(id);
+
+
+--
+-- Name: task task_task_set_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.task
+    ADD CONSTRAINT task_task_set_row_id_fkey FOREIGN KEY (task_set_row_id) REFERENCES public.task_set(id);
+
+
+--
+-- Name: teacher teacher_sabqcha_user_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.teacher
+    ADD CONSTRAINT teacher_sabqcha_user_row_id_fkey FOREIGN KEY (sabqcha_user_row_id) REFERENCES public.sabqcha_user(id);
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict XaBKS0kxxTij9fyCT9whme5fM2Ut7SapoqJ4c76IQSOYAdrmJlz3OFje1iBc6ma
+\unrestrict xpl7StNDESlB8ufOo2oTjrgDqdNYuhzsyzPbGaJTIbg6rIMhQiLG5OXWeYGOOnW
 
 
 --
@@ -197,4 +527,4 @@ ALTER TABLE ONLY public.transcription
 --
 
 INSERT INTO public.schema_migrations (version) VALUES
-    ('20251006171045');
+    ('20251009084223');
