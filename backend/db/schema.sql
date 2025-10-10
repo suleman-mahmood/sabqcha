@@ -1,4 +1,4 @@
-\restrict xpl7StNDESlB8ufOo2oTjrgDqdNYuhzsyzPbGaJTIbg6rIMhQiLG5OXWeYGOOnW
+\restrict 1en51zMAbCM7IDTiA8C8pwTVrV7cQytyIMHN2rrNaxsPlkbG1Gcb9Yp4DHG5Fuo
 
 -- Dumped from database version 16.4 (Debian 16.4-1.pgdg120+1)
 -- Dumped by pg_dump version 17.6
@@ -37,18 +37,18 @@ SET default_table_access_method = heap;
 --
 
 CREATE TABLE public.device_user (
-    id bigint NOT NULL,
+    row_id bigint NOT NULL,
     device_id text NOT NULL,
     sabqcha_user_row_id bigint NOT NULL
 );
 
 
 --
--- Name: device_user_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: device_user_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-ALTER TABLE public.device_user ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.device_user_id_seq
+ALTER TABLE public.device_user ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.device_user_row_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -62,7 +62,7 @@ ALTER TABLE public.device_user ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY 
 --
 
 CREATE TABLE public.lecture (
-    id bigint NOT NULL,
+    row_id bigint NOT NULL,
     public_id text NOT NULL,
     room_row_id bigint NOT NULL,
     file_path text NOT NULL,
@@ -73,11 +73,11 @@ CREATE TABLE public.lecture (
 
 
 --
--- Name: lecture_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: lecture_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-ALTER TABLE public.lecture ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.lecture_id_seq
+ALTER TABLE public.lecture ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.lecture_row_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -91,7 +91,7 @@ ALTER TABLE public.lecture ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 --
 
 CREATE TABLE public.room (
-    id bigint NOT NULL,
+    row_id bigint NOT NULL,
     public_id text NOT NULL,
     display_name text NOT NULL,
     invite_code text NOT NULL,
@@ -101,11 +101,11 @@ CREATE TABLE public.room (
 
 
 --
--- Name: room_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: room_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-ALTER TABLE public.room ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.room_id_seq
+ALTER TABLE public.room ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.room_row_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -119,7 +119,7 @@ ALTER TABLE public.room ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 --
 
 CREATE TABLE public.sabqcha_user (
-    id bigint NOT NULL,
+    row_id bigint NOT NULL,
     public_id text NOT NULL,
     display_name text NOT NULL,
     email text,
@@ -129,11 +129,11 @@ CREATE TABLE public.sabqcha_user (
 
 
 --
--- Name: sabqcha_user_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: sabqcha_user_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-ALTER TABLE public.sabqcha_user ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.sabqcha_user_id_seq
+ALTER TABLE public.sabqcha_user ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.sabqcha_user_row_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -156,19 +156,20 @@ CREATE TABLE public.schema_migrations (
 --
 
 CREATE TABLE public.session (
-    id bigint NOT NULL,
+    row_id bigint NOT NULL,
     public_id text NOT NULL,
     sabqcha_user_row_id bigint NOT NULL,
+    is_expired boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
 --
--- Name: session_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: session_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-ALTER TABLE public.session ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.session_id_seq
+ALTER TABLE public.session ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.session_row_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -182,23 +183,9 @@ ALTER TABLE public.session ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 --
 
 CREATE TABLE public.student (
-    id bigint NOT NULL,
+    row_id bigint NOT NULL,
     sabqcha_user_row_id bigint NOT NULL,
     score bigint DEFAULT 0 NOT NULL
-);
-
-
---
--- Name: student_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-ALTER TABLE public.student ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.student_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
 );
 
 
@@ -213,11 +200,25 @@ CREATE TABLE public.student_room (
 
 
 --
+-- Name: student_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.student ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.student_row_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: task; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.task (
-    id bigint NOT NULL,
+    row_id bigint NOT NULL,
     public_id text NOT NULL,
     task_set_row_id bigint NOT NULL,
     question text NOT NULL,
@@ -227,11 +228,11 @@ CREATE TABLE public.task (
 
 
 --
--- Name: task_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: task_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-ALTER TABLE public.task ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.task_id_seq
+ALTER TABLE public.task ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.task_row_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -245,7 +246,7 @@ ALTER TABLE public.task ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 --
 
 CREATE TABLE public.task_set (
-    id bigint NOT NULL,
+    row_id bigint NOT NULL,
     public_id text NOT NULL,
     lecture_row_id bigint NOT NULL,
     day public.week_day NOT NULL,
@@ -254,11 +255,11 @@ CREATE TABLE public.task_set (
 
 
 --
--- Name: task_set_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: task_set_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-ALTER TABLE public.task_set ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.task_set_id_seq
+ALTER TABLE public.task_set ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.task_set_row_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -272,17 +273,17 @@ ALTER TABLE public.task_set ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 --
 
 CREATE TABLE public.teacher (
-    id bigint NOT NULL,
+    row_id bigint NOT NULL,
     sabqcha_user_row_id bigint NOT NULL
 );
 
 
 --
--- Name: teacher_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: teacher_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-ALTER TABLE public.teacher ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.teacher_id_seq
+ALTER TABLE public.teacher ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.teacher_row_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -304,7 +305,7 @@ ALTER TABLE ONLY public.device_user
 --
 
 ALTER TABLE ONLY public.device_user
-    ADD CONSTRAINT device_user_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT device_user_pkey PRIMARY KEY (row_id);
 
 
 --
@@ -312,7 +313,7 @@ ALTER TABLE ONLY public.device_user
 --
 
 ALTER TABLE ONLY public.lecture
-    ADD CONSTRAINT lecture_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT lecture_pkey PRIMARY KEY (row_id);
 
 
 --
@@ -328,7 +329,7 @@ ALTER TABLE ONLY public.lecture
 --
 
 ALTER TABLE ONLY public.room
-    ADD CONSTRAINT room_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT room_pkey PRIMARY KEY (row_id);
 
 
 --
@@ -344,7 +345,7 @@ ALTER TABLE ONLY public.room
 --
 
 ALTER TABLE ONLY public.sabqcha_user
-    ADD CONSTRAINT sabqcha_user_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT sabqcha_user_pkey PRIMARY KEY (row_id);
 
 
 --
@@ -368,7 +369,7 @@ ALTER TABLE ONLY public.schema_migrations
 --
 
 ALTER TABLE ONLY public.session
-    ADD CONSTRAINT session_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT session_pkey PRIMARY KEY (row_id);
 
 
 --
@@ -384,7 +385,7 @@ ALTER TABLE ONLY public.session
 --
 
 ALTER TABLE ONLY public.student
-    ADD CONSTRAINT student_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT student_pkey PRIMARY KEY (row_id);
 
 
 --
@@ -400,7 +401,7 @@ ALTER TABLE ONLY public.student_room
 --
 
 ALTER TABLE ONLY public.task
-    ADD CONSTRAINT task_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT task_pkey PRIMARY KEY (row_id);
 
 
 --
@@ -416,7 +417,7 @@ ALTER TABLE ONLY public.task
 --
 
 ALTER TABLE ONLY public.task_set
-    ADD CONSTRAINT task_set_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT task_set_pkey PRIMARY KEY (row_id);
 
 
 --
@@ -432,7 +433,7 @@ ALTER TABLE ONLY public.task_set
 --
 
 ALTER TABLE ONLY public.teacher
-    ADD CONSTRAINT teacher_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT teacher_pkey PRIMARY KEY (row_id);
 
 
 --
@@ -440,7 +441,7 @@ ALTER TABLE ONLY public.teacher
 --
 
 ALTER TABLE ONLY public.device_user
-    ADD CONSTRAINT device_user_sabqcha_user_row_id_fkey FOREIGN KEY (sabqcha_user_row_id) REFERENCES public.sabqcha_user(id);
+    ADD CONSTRAINT device_user_sabqcha_user_row_id_fkey FOREIGN KEY (sabqcha_user_row_id) REFERENCES public.sabqcha_user(row_id);
 
 
 --
@@ -448,7 +449,7 @@ ALTER TABLE ONLY public.device_user
 --
 
 ALTER TABLE ONLY public.lecture
-    ADD CONSTRAINT lecture_room_row_id_fkey FOREIGN KEY (room_row_id) REFERENCES public.room(id);
+    ADD CONSTRAINT lecture_room_row_id_fkey FOREIGN KEY (room_row_id) REFERENCES public.room(row_id);
 
 
 --
@@ -456,7 +457,7 @@ ALTER TABLE ONLY public.lecture
 --
 
 ALTER TABLE ONLY public.room
-    ADD CONSTRAINT room_teacher_row_id_fkey FOREIGN KEY (teacher_row_id) REFERENCES public.teacher(id);
+    ADD CONSTRAINT room_teacher_row_id_fkey FOREIGN KEY (teacher_row_id) REFERENCES public.teacher(row_id);
 
 
 --
@@ -464,7 +465,7 @@ ALTER TABLE ONLY public.room
 --
 
 ALTER TABLE ONLY public.session
-    ADD CONSTRAINT session_sabqcha_user_row_id_fkey FOREIGN KEY (sabqcha_user_row_id) REFERENCES public.sabqcha_user(id);
+    ADD CONSTRAINT session_sabqcha_user_row_id_fkey FOREIGN KEY (sabqcha_user_row_id) REFERENCES public.sabqcha_user(row_id);
 
 
 --
@@ -472,7 +473,7 @@ ALTER TABLE ONLY public.session
 --
 
 ALTER TABLE ONLY public.student_room
-    ADD CONSTRAINT student_room_room_row_id_fkey FOREIGN KEY (room_row_id) REFERENCES public.room(id);
+    ADD CONSTRAINT student_room_room_row_id_fkey FOREIGN KEY (room_row_id) REFERENCES public.room(row_id);
 
 
 --
@@ -480,7 +481,7 @@ ALTER TABLE ONLY public.student_room
 --
 
 ALTER TABLE ONLY public.student_room
-    ADD CONSTRAINT student_room_student_row_id_fkey FOREIGN KEY (student_row_id) REFERENCES public.student(id);
+    ADD CONSTRAINT student_room_student_row_id_fkey FOREIGN KEY (student_row_id) REFERENCES public.student(row_id);
 
 
 --
@@ -488,7 +489,7 @@ ALTER TABLE ONLY public.student_room
 --
 
 ALTER TABLE ONLY public.student
-    ADD CONSTRAINT student_sabqcha_user_row_id_fkey FOREIGN KEY (sabqcha_user_row_id) REFERENCES public.sabqcha_user(id);
+    ADD CONSTRAINT student_sabqcha_user_row_id_fkey FOREIGN KEY (sabqcha_user_row_id) REFERENCES public.sabqcha_user(row_id);
 
 
 --
@@ -496,7 +497,7 @@ ALTER TABLE ONLY public.student
 --
 
 ALTER TABLE ONLY public.task_set
-    ADD CONSTRAINT task_set_lecture_row_id_fkey FOREIGN KEY (lecture_row_id) REFERENCES public.lecture(id);
+    ADD CONSTRAINT task_set_lecture_row_id_fkey FOREIGN KEY (lecture_row_id) REFERENCES public.lecture(row_id);
 
 
 --
@@ -504,7 +505,7 @@ ALTER TABLE ONLY public.task_set
 --
 
 ALTER TABLE ONLY public.task
-    ADD CONSTRAINT task_task_set_row_id_fkey FOREIGN KEY (task_set_row_id) REFERENCES public.task_set(id);
+    ADD CONSTRAINT task_task_set_row_id_fkey FOREIGN KEY (task_set_row_id) REFERENCES public.task_set(row_id);
 
 
 --
@@ -512,14 +513,14 @@ ALTER TABLE ONLY public.task
 --
 
 ALTER TABLE ONLY public.teacher
-    ADD CONSTRAINT teacher_sabqcha_user_row_id_fkey FOREIGN KEY (sabqcha_user_row_id) REFERENCES public.sabqcha_user(id);
+    ADD CONSTRAINT teacher_sabqcha_user_row_id_fkey FOREIGN KEY (sabqcha_user_row_id) REFERENCES public.sabqcha_user(row_id);
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict xpl7StNDESlB8ufOo2oTjrgDqdNYuhzsyzPbGaJTIbg6rIMhQiLG5OXWeYGOOnW
+\unrestrict 1en51zMAbCM7IDTiA8C8pwTVrV7cQytyIMHN2rrNaxsPlkbG1Gcb9Yp4DHG5Fuo
 
 
 --

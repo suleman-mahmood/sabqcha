@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from api.dependencies import DataContext, get_data_context
+from api.dependencies import UnAuthDataContext, get_un_auth_data_context
 from api.dal import session_db, user_db
 from api import utils
 
@@ -10,9 +10,9 @@ from api import utils
 router = APIRouter(prefix="/user")
 
 
-@router.get("/device/{device_id}")
+@router.post("/device/{device_id}")
 async def login_anonymous_user(
-    device_id: str, data_context: DataContext = Depends(get_data_context)
+    device_id: str, data_context: UnAuthDataContext = Depends(get_un_auth_data_context)
 ):
     user_id = await user_db.get_user_id_from_device(data_context, device_id)
 
@@ -34,7 +34,7 @@ class LoginTeacherBody(BaseModel):
 
 @router.post("/login-teacher")
 async def login_teacher(
-    body: LoginTeacherBody, data_context: DataContext = Depends(get_data_context)
+    body: LoginTeacherBody, data_context: UnAuthDataContext = Depends(get_un_auth_data_context)
 ):
     """Return teacher user associated with the email and password, and a login token"""
     user_id = await user_db.get_user_id_from_credentials(data_context, body.email, body.password)

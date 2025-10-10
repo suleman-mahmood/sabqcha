@@ -75,6 +75,7 @@ app.add_middleware(
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
+    logger.info("Request path: {}", request.url.path)
     if (
         request.url.path.startswith("/user/device")
         or request.url.path.startswith("/user/login-teacher")

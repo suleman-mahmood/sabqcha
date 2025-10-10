@@ -39,6 +39,20 @@ class DataContext:
                 await cur.connection.commit()
 
 
+class UnAuthDataContext:
+    @asynccontextmanager
+    async def get_cursor(self):
+        assert pool
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                yield cur
+                await cur.connection.commit()
+
+
+def get_un_auth_data_context() -> UnAuthDataContext:
+    return UnAuthDataContext()
+
+
 def get_data_context(request: Request) -> DataContext:
     auth_data: AuthData = AuthData.model_validate(request.state.auth_data)
     return DataContext(user_id=auth_data.user_id, role=auth_data.role)

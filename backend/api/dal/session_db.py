@@ -2,10 +2,10 @@ from psycopg import AsyncCursor
 from api.utils import internal_id
 from api.dal import id_map
 from api.models.user_models import AuthData, UserRole
-from api.dependencies import DataContext
+from api.dependencies import DataContext, UnAuthDataContext
 
 
-async def insert_session(data_context: DataContext, user_id: str) -> str:
+async def insert_session(data_context: UnAuthDataContext, user_id: str) -> str:
     session_id = internal_id()
 
     async with data_context.get_cursor() as cur:
@@ -25,7 +25,7 @@ async def insert_session(data_context: DataContext, user_id: str) -> str:
         return session_id
 
 
-async def expire_user_sessions(data_context: DataContext, user_id: str):
+async def expire_user_sessions(data_context: UnAuthDataContext, user_id: str):
     async with data_context.get_cursor() as cur:
         user_row_id = await id_map.get_user_row_id(cur, user_id)
         assert user_row_id

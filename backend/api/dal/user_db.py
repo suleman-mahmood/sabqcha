@@ -1,10 +1,10 @@
-from api.dependencies import DataContext
+from api.dependencies import DataContext, UnAuthDataContext
 from api.utils import internal_id
 from api.dal import id_map
 from api.models.user_models import StudentUser
 
 
-async def get_user_id_from_device(data_context: DataContext, device_id: str) -> str | None:
+async def get_user_id_from_device(data_context: UnAuthDataContext, device_id: str) -> str | None:
     async with data_context.get_cursor() as cur:
         await cur.execute(
             """
@@ -24,7 +24,7 @@ async def get_user_id_from_device(data_context: DataContext, device_id: str) -> 
 
 
 async def get_user_id_from_credentials(
-    data_context: DataContext, email: str, password: str
+    data_context: UnAuthDataContext, email: str, password: str
 ) -> str | None:
     async with data_context.get_cursor() as cur:
         await cur.execute(
@@ -43,7 +43,7 @@ async def get_user_id_from_credentials(
         return row[0] if row else None
 
 
-async def insert_user(data_context: DataContext, display_name: str) -> str:
+async def insert_user(data_context: UnAuthDataContext, display_name: str) -> str:
     user_id = internal_id()
 
     async with data_context.get_cursor() as cur:
@@ -60,7 +60,7 @@ async def insert_user(data_context: DataContext, display_name: str) -> str:
         return user_id
 
 
-async def insert_device(data_context: DataContext, user_id: str) -> str:
+async def insert_device(data_context: UnAuthDataContext, user_id: str) -> str:
     device_id = internal_id()
 
     async with data_context.get_cursor() as cur:
@@ -70,7 +70,7 @@ async def insert_device(data_context: DataContext, user_id: str) -> str:
         await cur.execute(
             """
             insert into device_user (
-                public_id, sabqcha_user_row_id
+                device_id, sabqcha_user_row_id
             )
             values (%s, %s)
             """,
@@ -80,7 +80,7 @@ async def insert_device(data_context: DataContext, user_id: str) -> str:
         return device_id
 
 
-async def insert_student(data_context: DataContext, user_id: str):
+async def insert_student(data_context: UnAuthDataContext, user_id: str):
     async with data_context.get_cursor() as cur:
         user_row_id = await id_map.get_user_row_id(cur, user_id)
         assert user_row_id
