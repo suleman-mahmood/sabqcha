@@ -17,7 +17,5 @@ class User(BaseModel):
     display_name: str
 
 
-class StudentUser(BaseModel):
-    id: str
-    display_name: str
+class StudentUser(User):
     score: int

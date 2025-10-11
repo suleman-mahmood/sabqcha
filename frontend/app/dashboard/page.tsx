@@ -651,6 +651,14 @@ export default function Dashboard() {
                                                         </Button>
                                                     )
                                                 )}
+
+                                                <Button
+                                                    className="mt-2 w-full"
+                                                    variant="outline"
+                                                    onClick={(e) => { e.stopPropagation(); router.push(`/leaderboard/${room.id}`); }}
+                                                >
+                                                    Leaderboards
+                                                </Button>
                                             </CardContent>
                                         </Card>
                                     ))}

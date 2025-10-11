@@ -1,7 +1,7 @@
 from api.dependencies import DataContext, UnAuthDataContext
 from api.utils import internal_id
 from api.dal import id_map
-from api.models.user_models import StudentUser, User
+from api.models.user_models import User
 
 
 async def get_user_id_from_device(data_context: UnAuthDataContext, device_id: str) -> str | None:
@@ -112,21 +112,3 @@ async def get_user(data_context: DataContext, user_id: str) -> User | None:
         if not row:
             return None
     return User(id=row[0], display_name=row[1])
-
-
-async def list_students(data_context: DataContext) -> list[StudentUser]:
-    async with data_context.get_cursor() as cur:
-        await cur.execute(
-            """
-            select
-                su.public_id as id,
-                su.display_name,
-                st.score
-            from
-                student st
-                join sabqcha_user su on su.row_id = st.sabqcha_user_row_id
-            )
-            """,
-        )
-        rows = await cur.fetchall()
-    return [StudentUser(id=r[0], display_name=r[1], score=r[2]) for r in rows]
