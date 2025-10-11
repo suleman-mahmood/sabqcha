@@ -91,7 +91,9 @@ async def list_lectures(data_context: DataContext, room_id: str) -> list[Lecture
         LectureEntry(
             id=r[0],
             title=r[1],
-            task_sets=[TaskSet(id=ts["id"], day=ts["day"]) for ts in r[2]],
+            task_sets=[
+                TaskSet(id=ts["id"], day=ts["day"], lecture_name=r[1], tasks=[]) for ts in r[2]
+            ],
         )
         for r in rows
     ]

@@ -77,7 +77,7 @@ export default function Page() {
 
     const handleTaskSetClick = (taskSetId: string) => {
         // navigate to task page (implementation TODO)
-        router.push(`/room/${roomId}/task/${taskSetId}`);
+        router.push(`/task-set/${taskSetId}`);
     };
 
     if (!roomId) {
@@ -107,9 +107,16 @@ export default function Page() {
         <div className="min-h-screen p-6 bg-background">
             <div className="max-w-4xl mx-auto">
                 <div className="mb-6">
-                    <h1 className="text-2xl font-semibold">{roomDisplayName || "Room"}</h1>
-                    {inviteCode && <p className="text-sm text-muted-foreground">Invite Code: {inviteCode}</p>}
-                    <p className="text-sm text-muted-foreground">Manage lectures and task sets.</p>
+                    <div className="flex items-center justify-between mb-2">
+                        <div>
+                            <h1 className="text-2xl font-semibold">{roomDisplayName || "Room"}</h1>
+                            {inviteCode && <p className="text-sm text-muted-foreground">Invite Code: {inviteCode}</p>}
+                            <p className="text-sm text-muted-foreground">Manage lectures and task sets.</p>
+                        </div>
+                        <div className="ml-4">
+                            <Button variant="ghost" size="sm" onClick={() => router.back()}>Back to dashboard</Button>
+                        </div>
+                    </div>
                 </div>
 
                 {error && (

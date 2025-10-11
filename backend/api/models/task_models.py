@@ -20,3 +20,5 @@ class WeekDay(StrEnum):
 class TaskSet(BaseModel):
     id: str
     day: WeekDay
+    lecture_name: str
+    tasks: list[Task]

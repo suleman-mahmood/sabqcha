@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from api.dependencies import DataContext, get_data_context
@@ -49,8 +50,11 @@ async def list_task_sets(data_context: DataContext = Depends(get_data_context)):
 
 
 @router.get("/set/{task_set_id}")
-async def get_task_set(data_context: DataContext = Depends(get_data_context)):
-    """Return task set info and its tasks"""
+async def get_task_set(task_set_id: str, data_context: DataContext = Depends(get_data_context)):
+    task_set = await task_db.get_task_set(data_context, task_set_id)
+    assert task_set
+
+    return JSONResponse(task_set.model_dump(mode="json"))
 
 
 @router.get("/{task_id}")

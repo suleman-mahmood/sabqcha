@@ -2,7 +2,7 @@ from api.dal import id_map
 from api.dependencies import DataContext
 from api.models.transcription_models import LlmMcq
 from api.utils import internal_id
-from api.models.task_models import Task
+from api.models.task_models import Task, TaskSet
 
 
 async def insert_task_set(data_context: DataContext, lecture_id: str, tasks: list[LlmMcq]) -> str:
@@ -52,7 +52,7 @@ async def insert_task_set(data_context: DataContext, lecture_id: str, tasks: lis
     return task_set_id
 
 
-async def get_task_set(data_context: DataContext, task_set_id: str) -> list[Task]:
+async def get_task_set(data_context: DataContext, task_set_id: str) -> TaskSet | None:
     async with data_context.get_cursor() as cur:
         task_set_row_id = await id_map.get_task_set_row_id(cur, task_set_id)
         assert task_set_row_id
@@ -60,14 +60,37 @@ async def get_task_set(data_context: DataContext, task_set_id: str) -> list[Task
         await cur.execute(
             """
             select
-                public_id, question, answer, options
+                ts.public_id,
+                ts.day,
+                l.title,
+                json_agg(
+                    json_build_object(
+                        'id', t.public_id,
+                        'question', t.question,
+                        'answer', t.answer,
+                        'options', t.options
+                    )
+                ) as tasks
             from
-                task
+                task_set ts
+                join lecture l on l.row_id = ts.lecture_row_id
+                join task t on t.task_set_row_id = ts.row_id
             where
-                task_set_row_id = %s
-            )
+                t.task_set_row_id = %s
+            group by
+                ts.public_id, ts.day, l.title
             """,
             (task_set_row_id,),
         )
-        rows = await cur.fetchall()
-    return [Task(id=r[0], question=r[1], answer=r[2], options=r[3]) for r in rows]
+        row = await cur.fetchone()
+        if not row:
+            return None
+    return TaskSet(
+        id=row[0],
+        day=row[1],
+        lecture_name=row[2],
+        tasks=[
+            Task(id=t["id"], question=t["question"], answer=t["answer"], options=t["options"])
+            for t in row[3]
+        ],
+    )
