@@ -110,9 +110,7 @@ export default function Dashboard() {
     const [inviteLoading, setInviteLoading] = useState(false);
     const [inviteError, setInviteError] = useState<string | null>(null);
 
-    const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
-        try { return localStorage.getItem("auth_method") === "password"; } catch (e) { return false; }
-    });
+    const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
     useEffect(() => {
         let mounted = true;
