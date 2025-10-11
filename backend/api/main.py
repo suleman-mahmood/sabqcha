@@ -1,19 +1,23 @@
+from contextlib import asynccontextmanager
+import time
 import os
 import sys
 
 from psycopg import AsyncCursor
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from loguru import logger
 from psycopg_pool import AsyncConnectionPool
 
-from api.routes import transcribe_routes
 from api.routes import task_routes
 from api.routes import leaderboard_routes
 from api.dependencies import get_cursor
 from api import dependencies
+from api.dal import session_db
+from api.routes import user_routes
+from api.routes import lecture_routes, room_routes
 
 
 # Setup logger
@@ -30,9 +34,6 @@ logger.add(
 )
 
 
-# Setup FastAPI
-app = FastAPI()
-
 # Setup PG lifcycle
 dbname = os.getenv("SABQCHA_PG_DB")
 user = os.getenv("SABQCHA_PG_USER")
@@ -43,22 +44,26 @@ port = os.getenv("SABQCHA_PG_PORT")
 assert dbname and user and password and host and port
 
 
-@app.on_event("startup")
-async def on_startup():
+@asynccontextmanager
+async def lifespan(_: FastAPI):
     dependencies.pool = AsyncConnectionPool(
         f"dbname={dbname} user={user} password={password} host={host} port={port}",
         min_size=5,
         max_size=10,
+        open=False,
     )
+    await dependencies.pool.open()
     logger.info("PG Pool initialized")
 
+    yield
 
-@app.on_event("shutdown")
-async def on_shutdown():
-    if dependencies.pool:
-        await dependencies.pool.close()
-        logger.info("PG Pool closed")
+    await dependencies.pool.close()
+    dependencies.pool = None
+    logger.info("PG Pool closed")
 
+
+# Setup FastAPI
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -68,9 +73,65 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
-app.include_router(transcribe_routes.router)
-app.include_router(task_routes.router)
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    if (
+        request.url.path.startswith("/user/device")
+        or request.url.path.startswith("/user/login-teacher")
+        or request.url.path.startswith("/docs")
+        or request.url.path.startswith("/openapi.json")
+    ):
+        response = await call_next(request)
+        return response
+
+    token = request.headers.get("Authorization")
+    if not token or len(token.split(" ")) != 2:
+        raise HTTPException(401, detail="Unauthorized")
+    if not dependencies.pool:
+        raise HTTPException(500, detail="PG Pool not initialized in auth middleware")
+
+    session_id = token.split(" ")[1]
+    async with dependencies.pool.connection() as conn:
+        async with conn.cursor() as cur:
+            auth_data = await session_db.get_session(cur, session_id)
+
+    if not auth_data:
+        raise HTTPException(401, detail="Unauthorized")
+
+    request.state.auth_data = auth_data.model_dump(mode="json")
+    response = await call_next(request)
+    return response
+
+
+# Middleware to log requests and response times
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+
+    # Log request start
+    logger.info(f"Incoming request: {request.method} {request.url}")
+
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        logger.exception(f"Error while processing request: {e}")
+        raise
+
+    # Log response time
+    duration = time.time() - start_time
+    logger.info(
+        f"Completed {request.method} {request.url} in {duration:.2f}s with status {response.status_code}"
+    )
+
+    return response
+
+
+app.include_router(user_routes.router)
 app.include_router(leaderboard_routes.router)
+app.include_router(lecture_routes.router)
+app.include_router(room_routes.router)
+app.include_router(task_routes.router)
 
 
 @app.get("/health-check")

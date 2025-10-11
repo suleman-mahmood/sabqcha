@@ -54,14 +54,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       } else {
         const name = CUTE_NAMES[Math.floor(Math.random() * CUTE_NAMES.length)];
         const id = generateId();
-        localStorage.setItem("display_name", name);
-        localStorage.setItem("user_id", id);
+        try {
+          localStorage.setItem("display_name", name);
+          localStorage.setItem("user_id", id);
+        } catch (e) {
+          // ignore storage errors
+        }
         setUserState({ displayName: name, userId: id });
       }
 
-
     } catch (e) {
-      // ignore localStorage errors
       console.warn("UserProvider init failed:", e);
     }
   }, []);
