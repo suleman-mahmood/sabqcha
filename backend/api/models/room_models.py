@@ -7,6 +7,7 @@ class Room(BaseModel):
     id: str
     display_name: str
     invite_code: str
+    daily_task_set_id: str | None
 
 
 class ListRoomsResponse(BaseModel):

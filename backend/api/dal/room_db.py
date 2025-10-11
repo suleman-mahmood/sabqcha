@@ -57,7 +57,18 @@ async def list_rooms(data_context: DataContext, user_id: str, user_role: UserRol
                     select
                         r.public_id,
                         r.display_name,
-                        r.invite_code
+                        r.invite_code,
+                        (
+                            select
+                                ts.public_id
+                            from
+                                task_set ts
+                                join lecture l on
+                                    l.row_id = ts.lecture_row_id and
+                                    l.room_row_id = r.row_id
+                            order by ts.created_at desc
+                            limit 1
+                        ) as daily_task_set_id
                     from
                         room r
                         join student_room sr on sr.room_row_id = r.row_id
@@ -68,6 +79,11 @@ async def list_rooms(data_context: DataContext, user_id: str, user_role: UserRol
                     """,
                     (user_id,),
                 )
+                rows = await cur.fetchall()
+                return [
+                    Room(id=r[0], display_name=r[1], invite_code=r[2], daily_task_set_id=r[3])
+                    for r in rows
+                ]
             case UserRole.TEACHER:
                 await cur.execute(
                     """
@@ -84,8 +100,11 @@ async def list_rooms(data_context: DataContext, user_id: str, user_role: UserRol
                     """,
                     (user_id,),
                 )
-        rows = await cur.fetchall()
-    return [Room(id=r[0], display_name=r[1], invite_code=r[2]) for r in rows]
+                rows = await cur.fetchall()
+                return [
+                    Room(id=r[0], display_name=r[1], invite_code=r[2], daily_task_set_id=None)
+                    for r in rows
+                ]
 
 
 async def get_room(data_context: DataContext, room_id: str) -> Room | None:
@@ -106,7 +125,7 @@ async def get_room(data_context: DataContext, room_id: str) -> Room | None:
         row = await cur.fetchone()
         if not row:
             return None
-    return Room(id=row[0], display_name=row[1], invite_code=row[2])
+    return Room(id=row[0], display_name=row[1], invite_code=row[2], daily_task_set_id=None)
 
 
 async def get_room_for_invite_code(data_context: DataContext, invite_code: str) -> str | None:

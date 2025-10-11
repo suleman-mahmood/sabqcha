@@ -32,6 +32,7 @@ interface Room {
     id: string;
     display_name: string;
     invite_code?: string;
+    daily_task_set_id?: string | null;
 }
 
 function ThemeToggle() {
@@ -160,7 +161,12 @@ export default function Dashboard() {
                 } catch (e) { }
             }
             if (Array.isArray(data.rooms)) {
-                const mapped: Room[] = data.rooms.map((r: any) => ({ id: r.id || r.doc_id || "", display_name: r.display_name || r.title || "Untitled", invite_code: r.invite_code }));
+                const mapped: Room[] = data.rooms.map((r: any) => ({
+                    id: r.id || r.doc_id || "",
+                    display_name: r.display_name || r.title || "Untitled",
+                    invite_code: r.invite_code,
+                    daily_task_set_id: r.daily_task_set_id ?? null,
+                }));
                 setRooms(mapped);
             }
         } catch (err) {
@@ -545,17 +551,6 @@ export default function Dashboard() {
                             </CardContent>
                         </Card>
                     )}
-
-                    {/* Leaderboards card */}
-                    {!loading && userRole !== "TEACHER" && (
-                        <Card className="p-6">
-                            <CardContent className="flex flex-col items-center justify-center">
-                                <h3 className="text-lg font-semibold mb-2">Leaderboards</h3>
-                                <p className="text-sm text-muted-foreground mb-4 text-center">See top learners and compare your progress.</p>
-                                <Button variant="ghost" onClick={() => router.push("/leaderboards")}>View Leaderboards</Button>
-                            </CardContent>
-                        </Card>
-                    )}
                 </div>
 
                 {/* 🔸 Room List */}
@@ -637,9 +632,19 @@ export default function Dashboard() {
                                                     )}
                                                 </div>
                                                 {userRole !== "TEACHER" && (
-                                                    <Button className="mt-3 w-full" variant="outline">
-                                                        View MCQs
-                                                    </Button>
+                                                    room.daily_task_set_id === null ? (
+                                                        <Button className="mt-3 w-full" variant="outline" disabled>
+                                                            Daily Task done!
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            className="mt-3 w-full"
+                                                            variant="outline"
+                                                            onClick={(e) => { e.stopPropagation(); if (room.daily_task_set_id) router.push(`/task-set/${room.daily_task_set_id}`); }}
+                                                        >
+                                                            Daily Task
+                                                        </Button>
+                                                    )
                                                 )}
                                             </CardContent>
                                         </Card>

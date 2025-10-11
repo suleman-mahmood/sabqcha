@@ -11,13 +11,13 @@ from api.models.user_models import UserRole
 router = APIRouter(prefix="/task")
 
 
-class McqAttempted(BaseModel):
+class TaskAttempted(BaseModel):
     answer: str
     did_skip: bool
 
 
 class SubmitTaskBody(BaseModel):
-    mcqs: list[McqAttempted]
+    tasks: list[TaskAttempted]
 
 
 @router.post("/set/{task_set_id}")
@@ -27,10 +27,11 @@ async def submit_task_set(
     assert data_context.user_role == UserRole.STUDENT
 
     mcqs = await task_db.get_task_set(data_context, task_set_id)
+    assert mcqs
 
     score = 0
 
-    for mcq, mcq_attempt in zip(mcqs, body.mcqs):
+    for mcq, mcq_attempt in zip(mcqs.tasks, body.tasks):
         if mcq_attempt.did_skip:
             continue
 
