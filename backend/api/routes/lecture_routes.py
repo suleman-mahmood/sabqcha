@@ -8,6 +8,7 @@ from api.dependencies import DataContext, get_data_context, get_bucket, get_open
 from api.dal import lecture_db
 from api.models.user_models import UserRole
 from api.controllers import transcribe_controller
+from api.dal import room_db
 
 router = APIRouter(prefix="/lecture")
 
@@ -37,13 +38,15 @@ async def create_lecture(
     )
 
 
-@router.get("")
-async def get_lecture(data_context: DataContext = Depends(get_data_context)):
-    pass
-
-
 @router.get("/room/{room_id}")
 async def list_lectures(room_id: str, data_context: DataContext = Depends(get_data_context)):
     lectures = await lecture_db.list_lectures(data_context, room_id)
+    room = await room_db.get_room(data_context, room_id)
+    assert room
 
-    return JSONResponse({"lectures": [le.model_dump(mode="json") for le in lectures]})
+    return JSONResponse(
+        {
+            "lectures": [le.model_dump(mode="json") for le in lectures],
+            **room.model_dump(mode="json"),
+        }
+    )

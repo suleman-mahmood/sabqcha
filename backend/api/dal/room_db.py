@@ -88,6 +88,27 @@ async def list_rooms(data_context: DataContext, user_id: str, user_role: UserRol
     return [Room(id=r[0], display_name=r[1], invite_code=r[2]) for r in rows]
 
 
+async def get_room(data_context: DataContext, room_id: str) -> Room | None:
+    async with data_context.get_cursor() as cur:
+        await cur.execute(
+            """
+            select
+                r.public_id,
+                r.display_name,
+                r.invite_code
+            from
+                room r
+            where
+                r.public_id = %s
+            """,
+            (room_id,),
+        )
+        row = await cur.fetchone()
+        if not row:
+            return None
+    return Room(id=row[0], display_name=row[1], invite_code=row[2])
+
+
 async def get_room_for_invite_code(data_context: DataContext, invite_code: str) -> str | None:
     async with data_context.get_cursor() as cur:
         await cur.execute("select public_id from room where invite_code = %s", (invite_code,))

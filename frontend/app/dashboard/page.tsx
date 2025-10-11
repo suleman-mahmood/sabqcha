@@ -620,8 +620,8 @@ export default function Dashboard() {
                                     {rooms.map((room) => (
                                         <Card
                                             key={room.id}
-                                            className={`transition-all hover:shadow-lg ${userRole === "TEACHER" ? 'opacity-80 cursor-not-allowed' : 'cursor-pointer'}`}
-                                            onClick={userRole !== "TEACHER" ? () => router.push(`/mcqs/${room.id}`) : undefined}
+                                            className="transition-all hover:shadow-lg cursor-pointer"
+                                            onClick={() => router.push(userRole === "TEACHER" ? `/room/${room.id}` : `/mcqs/${room.id}`)}
                                         >
                                             <CardContent className="p-4 text-center">
                                                 <p className="font-semibold text-foreground truncate">

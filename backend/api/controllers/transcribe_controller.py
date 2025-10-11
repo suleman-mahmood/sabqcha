@@ -103,18 +103,17 @@ async def transcribe(
             except Exception:
                 res_json = None
 
-            logger.info("Response Status: {}", status_code)
-            logger.info("Json: {}", res_json)
-
             if status_code != 200:
-                logger.error("Uplift API returned non 200 error: {}", status_code)
+                logger.error("Uplift API returned non 200 error: {}", status_code, json=res_json)
                 raise UpliftAiApiError("Uplift API returned non 200 error")
 
             if not res_json or "transcript" not in res_json:
-                logger.error("No transcript in response")
+                logger.error("No transcript in response", json=res_json)
                 raise UpliftAiApiError("No transcript in response")
 
-            return res_json["transcript"]
+            t = res_json["transcript"]
+            logger.info("Got transcription: {} ... {}", t[10:], t[-10:])
+            return t
 
         all_transcripts = await asyncio.gather(
             *[
@@ -124,9 +123,13 @@ async def transcribe(
         )
 
     final_transcript = " ".join(all_transcripts)
-
     await lecture_db.add_transcription(data_context, lecture_id, final_transcript)
 
+    logger.info(
+        "Calling llm to create mcqs for transcript: {} {}",
+        final_transcript[:10],
+        final_transcript[-10:],
+    )
     openai_res = await asyncio.to_thread(
         openai_client.responses.parse,
         model="gpt-5-mini",
@@ -141,5 +144,7 @@ async def transcribe(
     if not llm_res:
         logger.error("Invalid Response form OpenAI: {}", openai_res.model_dump(mode="json"))
         raise OpenAiApiError("Invalid response from OpenAI")
+
+    logger.info("LLM returned {} mcqs", len(llm_res.mcqs))
 
     await task_db.insert_task_set(data_context, lecture_id, llm_res.mcqs)

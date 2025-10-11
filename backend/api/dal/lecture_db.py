@@ -44,7 +44,6 @@ async def get_lecture(data_context: DataContext, lecture_id: str) -> Lecture | N
                 join room r on r.row_id = l.room_row_id
             where
                 l.public_id = %s
-            )
             """,
             (lecture_id,),
         )
@@ -69,10 +68,10 @@ async def list_lectures(data_context: DataContext, room_id: str) -> list[Lecture
                 coalesce(
                     json_agg(
                         json_build_object(
-                            'id', ts.public_id
+                            'id', ts.public_id,
                             'day', ts.day
                         )
-                    ),
+                    ) filter (where ts.public_id is not null),
                     '[]'
                 ) as task_sets
             from
@@ -82,16 +81,17 @@ async def list_lectures(data_context: DataContext, room_id: str) -> list[Lecture
             where
                 l.room_row_id = %s
             group by
-                l.public_id, l.title
-            group by l.created_at desc
-            )
+                l.public_id, l.title, l.created_at
+            order by l.created_at
             """,
             (room_row_id,),
         )
         rows = await cur.fetchall()
     return [
         LectureEntry(
-            id=r[0], title=r[1], task_sets=[TaskSet(id=ts["id"], day=ts["day"]) for ts in r[2]]
+            id=r[0],
+            title=r[1],
+            task_sets=[TaskSet(id=ts["id"], day=ts["day"]) for ts in r[2]],
         )
         for r in rows
     ]
@@ -105,7 +105,6 @@ async def add_transcription(data_context: DataContext, lecture_id: str, transcri
                 transcribed_content = %s
             where
                 public_id = %s
-            )
             """,
             (transcript, lecture_id),
         )
