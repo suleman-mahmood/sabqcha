@@ -1,4 +1,4 @@
-\restrict 1en51zMAbCM7IDTiA8C8pwTVrV7cQytyIMHN2rrNaxsPlkbG1Gcb9Yp4DHG5Fuo
+\restrict 4ktGQM0n9rCQWoraqzElvJSJlC0Hq1Kl4XQac6bLaINyxiDAdH82hXfXP6tFWfL
 
 -- Dumped from database version 16.4 (Debian 16.4-1.pgdg120+1)
 -- Dumped by pg_dump version 17.6
@@ -184,8 +184,7 @@ ALTER TABLE public.session ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY 
 
 CREATE TABLE public.student (
     row_id bigint NOT NULL,
-    sabqcha_user_row_id bigint NOT NULL,
-    score bigint DEFAULT 0 NOT NULL
+    sabqcha_user_row_id bigint NOT NULL
 );
 
 
@@ -195,7 +194,8 @@ CREATE TABLE public.student (
 
 CREATE TABLE public.student_room (
     student_row_id bigint NOT NULL,
-    room_row_id bigint NOT NULL
+    room_row_id bigint NOT NULL,
+    score bigint DEFAULT 0 NOT NULL
 );
 
 
@@ -520,7 +520,7 @@ ALTER TABLE ONLY public.teacher
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 1en51zMAbCM7IDTiA8C8pwTVrV7cQytyIMHN2rrNaxsPlkbG1Gcb9Yp4DHG5Fuo
+\unrestrict 4ktGQM0n9rCQWoraqzElvJSJlC0Hq1Kl4XQac6bLaINyxiDAdH82hXfXP6tFWfL
 
 
 --
@@ -528,4 +528,5 @@ ALTER TABLE ONLY public.teacher
 --
 
 INSERT INTO public.schema_migrations (version) VALUES
-    ('20251009084223');
+    ('20251009084223'),
+    ('20251011145552');

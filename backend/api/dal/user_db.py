@@ -130,23 +130,3 @@ async def list_students(data_context: DataContext) -> list[StudentUser]:
         )
         rows = await cur.fetchall()
     return [StudentUser(id=r[0], display_name=r[1], score=r[2]) for r in rows]
-
-
-async def update_user_score(data_context: DataContext, user_id: str, score_to_add: int):
-    async with data_context.get_cursor() as cur:
-        student_row_id = await id_map.get_student_row_id(cur, user_id)
-        assert student_row_id
-
-        await cur.execute(
-            """
-            update student set
-                score = score + %s
-            where
-                row_id = %s
-            """,
-            (
-                score_to_add,
-                student_row_id,
-            ),
-        )
-        await cur.connection.commit()

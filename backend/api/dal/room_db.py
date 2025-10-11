@@ -68,7 +68,8 @@ async def list_rooms(data_context: DataContext, user_id: str, user_role: UserRol
                                     l.room_row_id = r.row_id
                             order by ts.created_at desc
                             limit 1
-                        ) as daily_task_set_id
+                        ) as daily_task_set_id,
+                        sr.score
                     from
                         room r
                         join student_room sr on sr.room_row_id = r.row_id
@@ -81,7 +82,13 @@ async def list_rooms(data_context: DataContext, user_id: str, user_role: UserRol
                 )
                 rows = await cur.fetchall()
                 return [
-                    Room(id=r[0], display_name=r[1], invite_code=r[2], daily_task_set_id=r[3])
+                    Room(
+                        id=r[0],
+                        display_name=r[1],
+                        invite_code=r[2],
+                        daily_task_set_id=r[3],
+                        score=r[4],
+                    )
                     for r in rows
                 ]
             case UserRole.TEACHER:
@@ -102,7 +109,13 @@ async def list_rooms(data_context: DataContext, user_id: str, user_role: UserRol
                 )
                 rows = await cur.fetchall()
                 return [
-                    Room(id=r[0], display_name=r[1], invite_code=r[2], daily_task_set_id=None)
+                    Room(
+                        id=r[0],
+                        display_name=r[1],
+                        invite_code=r[2],
+                        daily_task_set_id=None,
+                        score=None,
+                    )
                     for r in rows
                 ]
 
@@ -125,7 +138,9 @@ async def get_room(data_context: DataContext, room_id: str) -> Room | None:
         row = await cur.fetchone()
         if not row:
             return None
-    return Room(id=row[0], display_name=row[1], invite_code=row[2], daily_task_set_id=None)
+    return Room(
+        id=row[0], display_name=row[1], invite_code=row[2], daily_task_set_id=None, score=None
+    )
 
 
 async def get_room_for_invite_code(data_context: DataContext, invite_code: str) -> str | None:
@@ -133,3 +148,48 @@ async def get_room_for_invite_code(data_context: DataContext, invite_code: str) 
         await cur.execute("select public_id from room where invite_code = %s", (invite_code,))
         row = await cur.fetchone()
         return row[0] if row else None
+
+
+async def get_room_for_task_set(data_context: DataContext, task_set_id: str) -> str | None:
+    async with data_context.get_cursor() as cur:
+        await cur.execute(
+            """
+            select
+                r.public_id
+            from
+                room r
+                join lecture l on l.room_row_id = r.row_id
+                join task_set ts on ts.lecture_row_id = l.row_id
+            where
+                ts.public_id = %s
+            """,
+            (task_set_id,),
+        )
+        row = await cur.fetchone()
+        return row[0] if row else None
+
+
+async def update_user_score(
+    data_context: DataContext, user_id: str, room_id: str, score_to_add: int
+):
+    async with data_context.get_cursor() as cur:
+        student_row_id = await id_map.get_student_row_id(cur, user_id)
+        assert student_row_id
+        room_row_id = await id_map.get_room_row_id(cur, room_id)
+        assert room_row_id
+
+        await cur.execute(
+            """
+            update student_room set
+                score = score + %s
+            where
+                student_row_id = %s and
+                room_row_id = %s
+            """,
+            (
+                score_to_add,
+                student_row_id,
+                room_row_id,
+            ),
+        )
+        await cur.connection.commit()

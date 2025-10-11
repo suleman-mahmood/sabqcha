@@ -3,9 +3,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from api.dependencies import DataContext, get_data_context
-from api.dal import user_db
 from api.dal import task_db
 from api.models.user_models import UserRole
+from api.dal import room_db
 
 
 router = APIRouter(prefix="/task")
@@ -42,7 +42,9 @@ async def submit_task_set(
 
     score = max(score, 0)
 
-    await user_db.update_user_score(data_context, data_context.user_id, score)
+    room_id = await room_db.get_room_for_task_set(data_context, task_set_id)
+    assert room_id
+    await room_db.update_user_score(data_context, data_context.user_id, room_id, score)
 
 
 @router.get("/lecture/{lecture_id}")

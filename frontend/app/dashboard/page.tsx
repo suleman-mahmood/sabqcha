@@ -33,6 +33,7 @@ interface Room {
     display_name: string;
     invite_code?: string;
     daily_task_set_id?: string | null;
+    score?: number | null;
 }
 
 function ThemeToggle() {
@@ -166,6 +167,7 @@ export default function Dashboard() {
                     display_name: r.display_name || r.title || "Untitled",
                     invite_code: r.invite_code,
                     daily_task_set_id: r.daily_task_set_id ?? null,
+                    score: typeof r.score === 'number' ? r.score : (r.score == null ? null : Number(r.score)),
                 }));
                 setRooms(mapped);
             }
@@ -616,12 +618,15 @@ export default function Dashboard() {
                                         <Card
                                             key={room.id}
                                             className="transition-all hover:shadow-lg cursor-pointer"
-                                            onClick={() => router.push(userRole === "TEACHER" ? `/room/${room.id}` : `/mcqs/${room.id}`)}
+                                            onClick={() => userRole === "TEACHER" ? router.push(`/room/${room.id}`) : null}
                                         >
                                             <CardContent className="p-4 text-center">
                                                 <p className="font-semibold text-foreground truncate">
                                                     {room.display_name || "Untitled Room"}
                                                 </p>
+                                                {userRole !== "TEACHER" && typeof room.score === "number" && (
+                                                    <p className="text-sm text-muted-foreground mt-1">Score: {room.score}</p>
+                                                )}
                                                 <div className="text-xs text-muted-foreground truncate mt-1 flex items-center justify-center gap-2">
                                                     <span className="truncate">Invite Code: {room.invite_code ?? room.id}</span>
                                                     <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); const text = room.invite_code ?? room.id; try { navigator.clipboard.writeText(text); setCopiedRoomId(room.id); setTimeout(() => setCopiedRoomId(null), 2000); } catch (err) { console.error('Copy failed', err); showError('Failed to copy invite code.'); } }} aria-label="Copy invite code">
