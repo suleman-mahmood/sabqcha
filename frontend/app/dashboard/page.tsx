@@ -553,6 +553,26 @@ export default function Dashboard() {
                             </CardContent>
                         </Card>
                     )}
+
+                    {userRole !== "TEACHER" && (
+                        <Card className="md:col-span-2 p-6">
+                            <CardContent>
+                                <div className="flex flex-col sm:flex-row items-start gap-4">
+                                    <div className="flex-1">
+                                        <h3 className="text-lg font-semibold mb-1">Demo Teacher Account</h3>
+                                        <p className="text-sm text-muted-foreground mb-2">For demo users: you can login with the credentials below to try teacher features.</p>
+
+                                        <div className="text-sm">
+                                            <p className="font-medium">Email: <span className="font-normal">teacher@sabqcha.com</span></p>
+                                            <p className="font-medium">Password: <span className="font-normal">nopass</span></p>
+                                        </div>
+
+                                        <p className="text-xs text-muted-foreground mt-2">Note: Logging in with these credentials will sign you in as a teacher.</p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
 
                 {/* 🔸 Room List */}
