@@ -112,7 +112,7 @@ async def transcribe(
                 raise UpliftAiApiError("No transcript in response")
 
             t = res_json["transcript"]
-            logger.info("Got transcription: {} ... {}", t[10:], t[-10:])
+            logger.info("Got transcription: {} ... {}", t[:10], t[-10:])
             return t
 
         all_transcripts = await asyncio.gather(
@@ -126,7 +126,7 @@ async def transcribe(
     await lecture_db.add_transcription(data_context, lecture_id, final_transcript)
 
     logger.info(
-        "Calling llm to create mcqs for transcript: {} {}",
+        "Calling llm to create mcqs for transcript: {} ... {}",
         final_transcript[:10],
         final_transcript[-10:],
     )
