@@ -625,14 +625,6 @@ export default function Dashboard() {
                             <p className="text-muted-foreground text-sm">No rooms found yet.</p>
                         ) : (
                             <div className="space-y-4">
-                                {userRole !== "TEACHER" && (
-                                    <div className="p-4 rounded-lg bg-muted border-border text-center">
-                                        <p className="text-foreground font-medium mb-2">
-                                            🎧 Get Started — Select a room below to view its MCQs
-                                        </p>
-                                    </div>
-                                )}
-
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                     {rooms.map((room) => (
                                         <Card

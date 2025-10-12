@@ -55,6 +55,11 @@ async def transcribe(
         text_format=LlmMcqResponse,
     )
 
+    if openai_res.usage:
+        logger.info("Input tokens: {}", openai_res.usage.input_tokens)
+        logger.info("Output tokens: {}", openai_res.usage.output_tokens)
+        logger.info("Total tokens used: {}", openai_res.usage.total_tokens)
+
     llm_res = openai_res.output_parsed
     if not llm_res:
         logger.error("Invalid Response form OpenAI: {}", openai_res.model_dump(mode="json"))
