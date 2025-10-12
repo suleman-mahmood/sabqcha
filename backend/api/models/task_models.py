@@ -38,6 +38,7 @@ class TaskSetAttemptRes(BaseModel):
     skip_count: int
     accuracy: float
     created_at: datetime
+    user_attempts: list[TaskAttempted]
 
 
 class TaskSetRes(BaseModel):

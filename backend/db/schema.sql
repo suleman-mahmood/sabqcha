@@ -1,4 +1,4 @@
-\restrict CmoS4cogCp58mSEqP4vx9adJvCGMELaKN52llxLHmnv9U4ySyyK08s4hurEuPr0
+\restrict F1HDLVyqysMUyWXZ210XptrUV3Ygenr6oe50B3hBfUGCE0oOOJD2LxBQQaQXetN
 
 -- Dumped from database version 16.4 (Debian 16.4-1.pgdg120+1)
 -- Dumped by pg_dump version 17.6
@@ -281,6 +281,34 @@ CREATE TABLE public.task_set (
 
 
 --
+-- Name: task_set_analysis; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.task_set_analysis (
+    row_id bigint NOT NULL,
+    public_id text NOT NULL,
+    task_set_row_id bigint NOT NULL,
+    in_progress boolean NOT NULL,
+    analysis jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: task_set_analysis_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.task_set_analysis ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.task_set_analysis_row_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: task_set_attempt; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -486,6 +514,22 @@ ALTER TABLE ONLY public.task
 
 
 --
+-- Name: task_set_analysis task_set_analysis_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.task_set_analysis
+    ADD CONSTRAINT task_set_analysis_pkey PRIMARY KEY (row_id);
+
+
+--
+-- Name: task_set_analysis task_set_analysis_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.task_set_analysis
+    ADD CONSTRAINT task_set_analysis_public_id_key UNIQUE (public_id);
+
+
+--
 -- Name: task_set_attempt task_set_attempt_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -590,6 +634,14 @@ ALTER TABLE ONLY public.student
 
 
 --
+-- Name: task_set_analysis task_set_analysis_task_set_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.task_set_analysis
+    ADD CONSTRAINT task_set_analysis_task_set_row_id_fkey FOREIGN KEY (task_set_row_id) REFERENCES public.task_set(row_id);
+
+
+--
 -- Name: task_set_attempt task_set_attempt_task_set_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -625,7 +677,7 @@ ALTER TABLE ONLY public.teacher
 -- PostgreSQL database dump complete
 --
 
-\unrestrict CmoS4cogCp58mSEqP4vx9adJvCGMELaKN52llxLHmnv9U4ySyyK08s4hurEuPr0
+\unrestrict F1HDLVyqysMUyWXZ210XptrUV3Ygenr6oe50B3hBfUGCE0oOOJD2LxBQQaQXetN
 
 
 --
@@ -639,4 +691,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20251012083132'),
     ('20251012105540'),
     ('20251012112211'),
-    ('20251012134309');
+    ('20251012134309'),
+    ('20251012161356');

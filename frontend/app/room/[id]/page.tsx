@@ -218,8 +218,9 @@ export default function Page() {
                                                 <p className="font-semibold">{ts.day || 'Task Set'}</p>
                                                 <p className="text-xs text-muted-foreground mt-1">Task set id: {ts.id}</p>
                                             </div>
-                                            <div>
+                                            <div className="flex items-center gap-2">
                                                 <Button size="sm" variant="outline" onClick={() => router.push(`/task-set/${ts.id}`)}>Retry</Button>
+                                                <Button size="sm" variant="ghost" onClick={() => router.push(`/analysis/${ts.id}`)}>Analyse Mistakes</Button>
                                             </div>
                                         </div>
 

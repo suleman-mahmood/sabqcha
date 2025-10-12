@@ -232,3 +232,45 @@ async def add_transcription(data_context: DataContext, lecture_id: str, transcri
             """,
             (transcript, lecture_id),
         )
+
+
+async def get_lecture_group_for_task_set(data_context: DataContext, task_set_id: str) -> str | None:
+    async with data_context.get_cursor() as cur:
+        await cur.execute(
+            """
+            select
+                lg.public_id
+            from
+                lecture_group lg
+                join task_set ts on
+                    ts.lecture_group_row_id = lg.row_id and
+                    ts.public_id = %s
+            """,
+            (task_set_id,),
+        )
+        row = await cur.fetchone()
+        if not row:
+            return None
+    return row[0]
+
+
+async def get_transcriptions_for_lecture_group(
+    data_context: DataContext, lecture_group_id: str
+) -> list[str]:
+    async with data_context.get_cursor() as cur:
+        lecture_group_row_id = await id_map.get_lecture_group_row_id(cur, lecture_group_id)
+        assert lecture_group_row_id
+
+        await cur.execute(
+            """
+            select
+                l.transcribed_content
+            from
+                lecture l
+            where
+                l.lecture_group_row_id = %s
+            """,
+            (lecture_group_row_id,),
+        )
+        rows = await cur.fetchall()
+    return [r[0] for r in rows]

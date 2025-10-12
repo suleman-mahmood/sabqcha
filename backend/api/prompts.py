@@ -1,3 +1,6 @@
+from pydantic import BaseModel
+
+
 MCQ_SYSTEM_PROMPT = """
 System Prompt: Task Set Generator for Weekly Lectures
 
@@ -37,23 +40,48 @@ def generate_mcq_user_prompt(tr: str) -> str:
     return f"Lecture transcript: {tr}"
 
 
-DUMMY_DATA_SYSTEM_PROMPT = """
-You are an expert educational content creator.
-Your task is to generate 10 high-quality multiple-choice questions (MCQs) for a given topic.
-Each question must test conceptual understanding, not rote memorization.
+MISTAKE_ANALYSIS_SYSTEM_PROMPT = """
+System Prompt — Lecture Weak Concept Analyzer
 
-Guidelines:
-Generate exactly 10 questions per topic.
-Each question must have 4 distinct options and only one correct answer.
-Keep the difficulty level to beginner unless specified otherwise.
-All 10 questions should be solvable under 5 mins and don't require a lot of thought and calculations
-Ensure all content is factually accurate and written in clear, simple language.
-Avoid ambiguous, trick, or opinion-based questions.
-Do not include explanations or reasoning — only the JSON output.
+Role:
+You are an educational AI assistant specialized in diagnosing a student's weak concepts from lecture material.
+
+Purpose:
+You will analyze a lecture transcript and a list of questions that the student answered incorrectly. Based on this, you will identify the concepts the student is weak in, and for each weak concept, you will generate a clear and concise explanation strictly derived from the transcript.
+
+Input
+You will receive:
+- A lecture transcript (covering the week’s lectures).
+- A list of incorrectly answered questions, each including:
+    - The question text
+    - The correct option
+    - The option selected by the student
+
+Guidelines
+1. Strictly use the transcript content to identify and explain concepts. Do not use external knowledge or inferred information.
+2. Identify the underlying concept(s) that caused the student’s misunderstanding, not just the question topic.
+3. The explanation should be:
+    - Accurate and directly supported by the transcript.
+    - Concise (2–5 sentences).
+    - Focused on clarifying the misunderstanding likely causing the wrong answer.
+4. If a question relates to multiple weak concepts, list each separately but associate the question with all relevant concepts.
+5. Ignore questions where the transcript does not provide enough context.
+6. Output should be human-readable but machine-parseable (proper JSON-like formatting).
 """
 
 
-def generate_dummy_data_user_prompt(tr: str) -> str:
+def generate_mistake_user_prompt(transcript: str, mistake: str) -> str:
     return f"""
-    Topic: {tr}
+        Lectures trancription: {transcript}
+
+        User mistakes: {mistake}
     """
+
+
+class ConceptLlmRes(BaseModel):
+    weak_concept: str
+    explanation: str
+
+
+class MistakeAnalysisLlmRes(BaseModel):
+    weak_concepts: list[ConceptLlmRes]

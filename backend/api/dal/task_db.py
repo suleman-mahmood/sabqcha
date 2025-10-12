@@ -1,5 +1,5 @@
 import json
-from loguru import logger
+
 from api.dal import id_map
 from api.dependencies import DataContext
 from api.models.transcription_models import LlmMcq
@@ -165,7 +165,8 @@ async def list_task_sets_for_room(data_context: DataContext, room_id: str) -> li
                             'correct', tsa.correct_count,
                             'incorrect', tsa.incorrect_count,
                             'skip', tsa.skip_count,
-                            'created_at', tsa.created_at
+                            'created_at', tsa.created_at,
+                            'user_attempts', tsa.user_attempts
                         )
                     ) filter (where tsa.public_id is not null),
                 '[]'::json
@@ -184,7 +185,7 @@ async def list_task_sets_for_room(data_context: DataContext, room_id: str) -> li
             (room_row_id,),
         )
         rows = await cur.fetchall()
-    logger.info("Res: {}", rows)
+
     return [
         TaskSetRes(
             id=r[0],
@@ -199,9 +200,98 @@ async def list_task_sets_for_room(data_context: DataContext, room_id: str) -> li
                     accuracy=(float(at["correct"]) * 100.0)
                     / float(at["correct"] + at["incorrect"] + at["skip"]),
                     created_at=at["created_at"],
+                    user_attempts=[
+                        TaskAttempted(answer=ua["answer"], did_skip=ua["did_skip"])
+                        for ua in at["user_attempts"]
+                    ],
                 )
                 for at in r[2]
             ],
         )
         for r in rows
     ]
+
+
+async def get_room_id_for_task_set(data_context: DataContext, task_set_id: str) -> str | None:
+    async with data_context.get_cursor() as cur:
+        task_set_row_id = await id_map.get_task_set_row_id(cur, task_set_id)
+        assert task_set_row_id
+
+        await cur.execute(
+            """
+            select
+                r.public_id
+            from
+                room r
+                join lecture_group lg on lg.room_row_id = r.row_id
+                join task_set ts on
+                    ts.lecture_group_row_id = lg.row_id and
+                    ts.row_id = %s
+            """,
+            (task_set_row_id,),
+        )
+        row = await cur.fetchone()
+        if not row:
+            return None
+    return row[0]
+
+
+async def insert_pending_analysis(data_context: DataContext, task_set_id: str) -> str:
+    analysis_id = internal_id()
+
+    async with data_context.get_cursor() as cur:
+        task_set_row_id = await id_map.get_task_set_row_id(cur, task_set_id)
+        assert task_set_row_id
+
+        await cur.execute(
+            """
+            insert into task_set_analysis (
+                public_id, task_set_row_id, in_progress
+            )
+            values (
+                %s, %s, true
+            )
+            """,
+            (analysis_id, task_set_row_id),
+        )
+
+    return analysis_id
+
+
+async def get_recent_analysis(
+    data_context: DataContext, task_set_id: str
+) -> tuple[dict, bool] | None:
+    async with data_context.get_cursor() as cur:
+        task_set_row_id = await id_map.get_task_set_row_id(cur, task_set_id)
+        assert task_set_row_id
+
+        await cur.execute(
+            """
+            select
+                analysis,
+                in_progress
+            from
+                task_set_analysis
+            where
+                task_set_row_id = %s
+            """,
+            (task_set_row_id,),
+        )
+        row = await cur.fetchone()
+        if not row:
+            return None
+    return row[0], row[1]
+
+
+async def add_analysis(data_context: DataContext, analysis_id: str, analysis: dict):
+    async with data_context.get_cursor() as cur:
+        await cur.execute(
+            """
+            update task_set_analysis set
+                analysis = %s::jsonb,
+                in_progress = false
+            where
+                public_id = %s
+            """,
+            (json.dumps(analysis), analysis_id),
+        )
