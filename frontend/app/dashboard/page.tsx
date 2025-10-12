@@ -50,9 +50,9 @@ function ThemeToggle() {
                     document.documentElement.classList.remove("dark");
                     setIsDark(false);
                 }
-            } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
-                document.documentElement.classList.add("dark");
-                setIsDark(true);
+            } else {
+                document.documentElement.classList.remove("dark");
+                setIsDark(false);
             }
         } catch (e) {
             // ignore
