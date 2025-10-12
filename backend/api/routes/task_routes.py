@@ -6,18 +6,15 @@ from api.dependencies import DataContext, get_data_context
 from api.dal import task_db
 from api.models.user_models import UserRole
 from api.dal import room_db
+from api.models.task_models import TaskAttempted
 
 
 router = APIRouter(prefix="/task")
 
 
-class TaskAttempted(BaseModel):
-    answer: str
-    did_skip: bool
-
-
 class SubmitTaskBody(BaseModel):
     tasks: list[TaskAttempted]
+    time_elapsed: int
 
 
 @router.post("/set/{task_set_id}")
@@ -29,15 +26,21 @@ async def submit_task_set(
     mcqs = await task_db.get_task_set(data_context, task_set_id)
     assert mcqs
 
+    correct = 0
+    incorrect = 0
+    skip = 0
     score = 0
 
     for mcq, mcq_attempt in zip(mcqs.tasks, body.tasks):
         if mcq_attempt.did_skip:
+            skip += 1
             continue
 
         if mcq_attempt.answer != mcq.answer:
+            incorrect += 1
             score -= 1
         else:
+            correct += 1
             score += 3
 
     score = max(score, 0)
@@ -45,6 +48,9 @@ async def submit_task_set(
     room_id = await room_db.get_room_for_task_set(data_context, task_set_id)
     assert room_id
     await room_db.update_user_score(data_context, data_context.user_id, room_id, score)
+    await task_db.insert_attempt(
+        data_context, task_set_id, body.tasks, correct, incorrect, skip, body.time_elapsed
+    )
 
 
 @router.get("/lecture/{lecture_id}")

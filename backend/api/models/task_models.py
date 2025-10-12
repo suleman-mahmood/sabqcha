@@ -22,3 +22,8 @@ class TaskSet(BaseModel):
     day: WeekDay
     lecture_name: str
     tasks: list[Task]
+
+
+class TaskAttempted(BaseModel):
+    answer: str
+    did_skip: bool

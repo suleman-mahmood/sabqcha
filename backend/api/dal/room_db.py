@@ -158,8 +158,8 @@ async def get_room_for_task_set(data_context: DataContext, task_set_id: str) -> 
                 r.public_id
             from
                 room r
-                join lecture l on l.room_row_id = r.row_id
-                join task_set ts on ts.lecture_row_id = l.row_id
+                join lecture_group lg on lg.room_row_id = r.row_id
+                join task_set ts on ts.lecture_group_row_id = lg.row_id
             where
                 ts.public_id = %s
             """,

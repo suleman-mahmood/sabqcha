@@ -1,4 +1,4 @@
-\restrict mnoKfq6IVq6oXANOIFnSrf8flIVpDcBj61OdDhkpkbUJn8ZzQMCI9dR3Lx5ofUJ
+\restrict DXoG2L2EBoubJd8GozJdcvGiRXwxNUEzPoBreC2sPYzBsf0hx84a2bRjmjR1C4X
 
 -- Dumped from database version 16.4 (Debian 16.4-1.pgdg120+1)
 -- Dumped by pg_dump version 17.6
@@ -281,6 +281,37 @@ CREATE TABLE public.task_set (
 
 
 --
+-- Name: task_set_attempt; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.task_set_attempt (
+    row_id bigint NOT NULL,
+    public_id text NOT NULL,
+    task_set_row_id bigint NOT NULL,
+    user_attempts jsonb NOT NULL,
+    time_elapsed integer NOT NULL,
+    correct_count integer NOT NULL,
+    incorrect_count integer NOT NULL,
+    skip_count integer NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: task_set_attempt_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.task_set_attempt ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.task_set_attempt_row_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: task_set_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
@@ -455,6 +486,22 @@ ALTER TABLE ONLY public.task
 
 
 --
+-- Name: task_set_attempt task_set_attempt_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.task_set_attempt
+    ADD CONSTRAINT task_set_attempt_pkey PRIMARY KEY (row_id);
+
+
+--
+-- Name: task_set_attempt task_set_attempt_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.task_set_attempt
+    ADD CONSTRAINT task_set_attempt_public_id_key UNIQUE (public_id);
+
+
+--
 -- Name: task_set task_set_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -543,6 +590,14 @@ ALTER TABLE ONLY public.student
 
 
 --
+-- Name: task_set_attempt task_set_attempt_task_set_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.task_set_attempt
+    ADD CONSTRAINT task_set_attempt_task_set_row_id_fkey FOREIGN KEY (task_set_row_id) REFERENCES public.task_set(row_id);
+
+
+--
 -- Name: task_set task_set_lecture_group_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -570,7 +625,7 @@ ALTER TABLE ONLY public.teacher
 -- PostgreSQL database dump complete
 --
 
-\unrestrict mnoKfq6IVq6oXANOIFnSrf8flIVpDcBj61OdDhkpkbUJn8ZzQMCI9dR3Lx5ofUJ
+\unrestrict DXoG2L2EBoubJd8GozJdcvGiRXwxNUEzPoBreC2sPYzBsf0hx84a2bRjmjR1C4X
 
 
 --
@@ -583,4 +638,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20251012080313'),
     ('20251012083132'),
     ('20251012105540'),
-    ('20251012112211');
+    ('20251012112211'),
+    ('20251012134309');

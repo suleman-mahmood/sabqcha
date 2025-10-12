@@ -188,7 +188,7 @@ function StudentTaskSet() {
             fetch(`/api/task/set/${encodeURIComponent(idParam)}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ tasks: mcqResponses }),
+                body: JSON.stringify({ tasks: mcqResponses, time_elapsed: timeSpentSeconds }),
             }).catch((err) => {
                 console.error("Failed to submit task-set results to backend:", err);
             });

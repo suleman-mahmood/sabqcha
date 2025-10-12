@@ -81,8 +81,8 @@ async def get_task_set_row_id(cur: AsyncCursor, task_set_id: str) -> int | None:
     return row[0]
 
 
-async def get_transcription_row_id(cur: AsyncCursor, trans_id: str) -> int | None:
-    await cur.execute("select id from transcription where public_id = %s", (trans_id,))
+async def get_task_row_id(cur: AsyncCursor, task_id: str) -> int | None:
+    await cur.execute("select row_id from task where public_id = %s", (task_id,))
     row = await cur.fetchone()
     if not row:
         return None
