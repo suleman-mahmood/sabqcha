@@ -1,4 +1,4 @@
-\restrict C6OHDDw41M7heNrHcbfj82c2PhmUJVEVLA8cpW8ZhX4VdK52ERU2UgdUyA8X5sH
+\restrict mnoKfq6IVq6oXANOIFnSrf8flIVpDcBj61OdDhkpkbUJn8ZzQMCI9dR3Lx5ofUJ
 
 -- Dumped from database version 16.4 (Debian 16.4-1.pgdg120+1)
 -- Dumped by pg_dump version 17.6
@@ -64,12 +64,11 @@ ALTER TABLE public.device_user ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENT
 CREATE TABLE public.lecture (
     row_id bigint NOT NULL,
     public_id text NOT NULL,
-    room_row_id bigint NOT NULL,
     file_path text NOT NULL,
     title text NOT NULL,
     transcribed_content text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    lecture_group_row_id bigint
+    lecture_group_row_id bigint NOT NULL
 );
 
 
@@ -275,7 +274,6 @@ ALTER TABLE public.task ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
 CREATE TABLE public.task_set (
     row_id bigint NOT NULL,
     public_id text NOT NULL,
-    lecture_row_id bigint NOT NULL,
     day public.week_day NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     lecture_group_row_id bigint
@@ -505,14 +503,6 @@ ALTER TABLE ONLY public.lecture
 
 
 --
--- Name: lecture lecture_room_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.lecture
-    ADD CONSTRAINT lecture_room_row_id_fkey FOREIGN KEY (room_row_id) REFERENCES public.room(row_id);
-
-
---
 -- Name: room room_teacher_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -561,14 +551,6 @@ ALTER TABLE ONLY public.task_set
 
 
 --
--- Name: task_set task_set_lecture_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.task_set
-    ADD CONSTRAINT task_set_lecture_row_id_fkey FOREIGN KEY (lecture_row_id) REFERENCES public.lecture(row_id);
-
-
---
 -- Name: task task_task_set_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -588,7 +570,7 @@ ALTER TABLE ONLY public.teacher
 -- PostgreSQL database dump complete
 --
 
-\unrestrict C6OHDDw41M7heNrHcbfj82c2PhmUJVEVLA8cpW8ZhX4VdK52ERU2UgdUyA8X5sH
+\unrestrict mnoKfq6IVq6oXANOIFnSrf8flIVpDcBj61OdDhkpkbUJn8ZzQMCI9dR3Lx5ofUJ
 
 
 --
@@ -599,4 +581,6 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20251009084223'),
     ('20251011145552'),
     ('20251012080313'),
-    ('20251012083132');
+    ('20251012083132'),
+    ('20251012105540'),
+    ('20251012112211');

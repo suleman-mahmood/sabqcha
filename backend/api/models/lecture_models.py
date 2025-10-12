@@ -10,7 +10,6 @@ class Lecture(BaseModel):
     room_id: str
     file_path: str
     title: str
-    transcribed_content: str | None
 
 
 class LectureEntryRes(BaseModel):

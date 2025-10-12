@@ -15,6 +15,7 @@ from api.models.transcription_models import LlmMcqResponse
 from api.prompts import MCQ_SYSTEM_PROMPT, generate_mcq_user_prompt
 from api.dal import lecture_db, task_db
 from api.dependencies import DataContext
+from api.models.task_models import WeekDay
 
 MAX_AUDIO_DURATION = 60 * 60  # In seconds, 1 hour
 AUDIO_CHUNK_LEN = 60  # In seconds
@@ -24,11 +25,51 @@ UPLIFT_API_KEY = os.getenv("UPLIFT_API_KEY")
 
 
 async def transcribe(
-    data_context: DataContext, bucket: Bucket, openai_client: OpenAI, lecture_id: str
+    data_context: DataContext, bucket: Bucket, openai_client: OpenAI, lecture_group_id: str
 ):
-    lecture = await lecture_db.get_lecture(data_context, lecture_id)
-    assert lecture
+    logger.info("Generating task sets for lecture group {}", lecture_group_id)
 
+    lectures = await lecture_db.list_lectures_for_group(data_context, lecture_group_id)
+    assert lectures
+
+    all_lecture_transcripts: list[str] = []
+    for le in lectures:
+        lecture_transcript = await transcribe_lecture(bucket, le.file_path)
+        await lecture_db.add_transcription(data_context, le.id, lecture_transcript)
+        all_lecture_transcripts.append(lecture_transcript)
+
+    final_mega_transcript = " ".join(all_lecture_transcripts)
+
+    logger.info(
+        "Calling llm to create mcqs for transcript: {} ... {}",
+        final_mega_transcript[:10],
+        final_mega_transcript[-10:],
+    )
+    openai_res = await asyncio.to_thread(
+        openai_client.responses.parse,
+        model="gpt-5-mini",
+        input=[
+            {"role": "system", "content": MCQ_SYSTEM_PROMPT},
+            {"role": "user", "content": generate_mcq_user_prompt(final_mega_transcript)},
+        ],
+        text_format=LlmMcqResponse,
+    )
+
+    llm_res = openai_res.output_parsed
+    if not llm_res:
+        logger.error("Invalid Response form OpenAI: {}", openai_res.model_dump(mode="json"))
+        raise OpenAiApiError("Invalid response from OpenAI")
+
+    logger.info("LLM returned {} task_sets", len(llm_res.task_sets))
+    for ts, day in zip(llm_res.task_sets, WeekDay):
+        logger.info("LLM returned {} tasks for {}", len(ts.mcqs), day)
+
+        await task_db.insert_task_set(data_context, lecture_group_id, ts.mcqs, day)
+
+    logger.info("Task sets generated for lecture group {}", lecture_group_id)
+
+
+async def transcribe_lecture(bucket: Bucket, file_path: str) -> str:
     all_transcripts: list[str] = []
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -36,7 +77,7 @@ async def transcribe(
         input_file = tempfile.NamedTemporaryFile(suffix=".mp3", dir=temp_dir, delete=False)
         input_file_name = input_file.name
 
-        blob = bucket.blob(lecture.file_path)
+        blob = bucket.blob(file_path)
         await asyncio.to_thread(blob.download_to_filename, input_file_name)
 
         # probe is blocking
@@ -122,29 +163,4 @@ async def transcribe(
             ]
         )
 
-    final_transcript = " ".join(all_transcripts)
-    await lecture_db.add_transcription(data_context, lecture_id, final_transcript)
-
-    logger.info(
-        "Calling llm to create mcqs for transcript: {} ... {}",
-        final_transcript[:10],
-        final_transcript[-10:],
-    )
-    openai_res = await asyncio.to_thread(
-        openai_client.responses.parse,
-        model="gpt-5-mini",
-        input=[
-            {"role": "system", "content": MCQ_SYSTEM_PROMPT},
-            {"role": "user", "content": generate_mcq_user_prompt(final_transcript)},
-        ],
-        text_format=LlmMcqResponse,
-    )
-
-    llm_res = openai_res.output_parsed
-    if not llm_res:
-        logger.error("Invalid Response form OpenAI: {}", openai_res.model_dump(mode="json"))
-        raise OpenAiApiError("Invalid response from OpenAI")
-
-    logger.info("LLM returned {} mcqs", len(llm_res.mcqs))
-
-    await task_db.insert_task_set(data_context, lecture_id, llm_res.mcqs)
+    return " ".join(all_transcripts)

@@ -31,8 +31,10 @@ export default function Page() {
     const [loading, setLoading] = useState(true);
     const [weeks, setWeeks] = useState<Week[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [infoMessage, setInfoMessage] = useState<string | null>(null);
     const [roomDisplayName, setRoomDisplayName] = useState<string>("");
     const [inviteCode, setInviteCode] = useState<string | null>(null);
+    const [generating, setGenerating] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         if (!roomId) return;
@@ -89,6 +91,29 @@ export default function Page() {
         router.push(`/task-set/${taskSetId}`);
     };
 
+    const handleGenerateTasks = async (lectureGroupId: string) => {
+        setError(null);
+        setInfoMessage(null);
+        setGenerating((s) => ({ ...s, [lectureGroupId]: true }));
+        try {
+            const res = await fetch(`/api/lecture/group/${encodeURIComponent(lectureGroupId)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || 'Failed to generate tasks');
+            }
+
+            setInfoMessage("Tasks are being generated, it will take approximately 5 mins, thank you for your patience! Revisit this page in a while and it will appear here");
+        } catch (err: any) {
+            console.error(err);
+            setError(err?.message || 'Failed to generate tasks');
+        } finally {
+            setGenerating((s) => ({ ...s, [lectureGroupId]: false }));
+        }
+    };
+
     if (!roomId) {
         return (
             <div className="min-h-screen p-6 bg-background">
@@ -132,6 +157,10 @@ export default function Page() {
                     <div className="mb-4 text-destructive">{error}</div>
                 )}
 
+                {infoMessage && (
+                    <div className="mb-4 text-muted-foreground">{infoMessage}</div>
+                )}
+
                 {weeks.length === 0 ? (
                     <Card className="p-6">
                         <CardContent>
@@ -166,22 +195,37 @@ export default function Page() {
                                     </div>
 
                                     <div className="flex items-center gap-2">
-                                        {DAYS.map((d) => {
-                                            const ts = week.task_sets?.find((t) => t.day === d.key);
-                                            const present = !!ts;
-                                            return (
-                                                <Button
-                                                    key={d.key}
-                                                    size="sm"
-                                                    variant={present ? "default" : "ghost"}
-                                                    onClick={() => ts && handleTaskSetClick(ts.id)}
-                                                    disabled={!present}
-                                                    aria-label={`Select ${d.key}`}
-                                                >
-                                                    {d.label}
-                                                </Button>
-                                            );
-                                        })}
+                                        {Array.isArray(week.task_sets) && week.task_sets.length > 0 ? (
+                                            DAYS.map((d) => {
+                                                const ts = week.task_sets?.find((t) => t.day === d.key);
+                                                const present = !!ts;
+                                                return (
+                                                    <Button
+                                                        key={d.key}
+                                                        size="sm"
+                                                        variant={present ? "default" : "ghost"}
+                                                        onClick={() => ts && handleTaskSetClick(ts.id)}
+                                                        disabled={!present}
+                                                        aria-label={`Select ${d.key}`}
+                                                    >
+                                                        {d.label}
+                                                    </Button>
+                                                );
+                                            })
+                                        ) : (
+                                            <Button
+                                                size="sm"
+                                                variant="default"
+                                                onClick={() => handleGenerateTasks(week.lecture_group_id)}
+                                                disabled={!!generating[week.lecture_group_id] || !(week.lectures && week.lectures.length > 0)}
+                                            >
+                                                {generating[week.lecture_group_id] ? (
+                                                    <span className="flex items-center gap-2"><Spinner className="h-4 w-4" /> Generating...</span>
+                                                ) : (
+                                                    'Generate Tasks'
+                                                )}
+                                            </Button>
+                                        )}
                                     </div>
                                 </CardContent>
                             </Card>

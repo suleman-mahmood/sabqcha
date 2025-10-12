@@ -11,26 +11,24 @@ from api.utils import internal_id
 
 
 async def insert_lecture(
-    data_context: DataContext, room_id: str, lecture_group_id: str, file_path: str, title: str
+    data_context: DataContext, lecture_group_id: str, file_path: str, title: str
 ) -> str:
     lecture_id = internal_id()
 
     async with data_context.get_cursor() as cur:
-        room_row_id = await id_map.get_room_row_id(cur, room_id)
-        assert room_row_id
         lecture_group_row_id = await id_map.get_lecture_group_row_id(cur, lecture_group_id)
         assert lecture_group_row_id
 
         await cur.execute(
             """
             insert into lecture (
-                public_id, room_row_id, lecture_group_row_id, file_path, title
+                public_id, lecture_group_row_id, file_path, title
             )
             values (
-                %s, %s, %s, %s, %s
+                %s, %s, %s, %s
             )
             """,
-            (lecture_id, room_row_id, lecture_group_row_id, file_path, title),
+            (lecture_id, lecture_group_row_id, file_path, title),
         )
 
     return lecture_id
@@ -74,6 +72,31 @@ async def get_this_week_lecture_group(data_context: DataContext, room_id: str) -
         return group_id
 
 
+async def list_lectures_for_group(data_context: DataContext, lecture_group_id: str):
+    async with data_context.get_cursor() as cur:
+        lecture_group_row_id = await id_map.get_lecture_group_row_id(cur, lecture_group_id)
+        assert lecture_group_row_id
+
+        await cur.execute(
+            """
+            select
+                l.public_id as id,
+                r.public_id as room_id,
+                l.file_path,
+                l.title
+            from
+                lecture l
+                join lecture_group lg on lg.row_id = l.lecture_group_row_id
+                join room r on r.row_id = lg.room_row_id
+            where
+                l.lecture_group_row_id = %s
+            """,
+            (lecture_group_row_id,),
+        )
+        rows = await cur.fetchall()
+    return [Lecture(id=r[0], room_id=r[1], file_path=r[2], title=r[3]) for r in rows]
+
+
 async def get_lecture(data_context: DataContext, lecture_id: str) -> Lecture | None:
     async with data_context.get_cursor() as cur:
         await cur.execute(
@@ -82,8 +105,7 @@ async def get_lecture(data_context: DataContext, lecture_id: str) -> Lecture | N
                 l.public_id as id,
                 r.public_id as room_id,
                 l.file_path,
-                l.title,
-                l.transcribed_content
+                l.title
             from
                 lecture l
                 join room r on r.row_id = l.room_row_id
@@ -95,9 +117,7 @@ async def get_lecture(data_context: DataContext, lecture_id: str) -> Lecture | N
         row = await cur.fetchone()
         if not row:
             return None
-    return Lecture(
-        id=row[0], room_id=row[1], file_path=row[2], title=row[3], transcribed_content=row[4]
-    )
+    return Lecture(id=row[0], room_id=row[1], file_path=row[2], title=row[3])
 
 
 async def list_lectures_ui(

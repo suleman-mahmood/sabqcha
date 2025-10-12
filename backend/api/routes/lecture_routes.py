@@ -1,13 +1,16 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse
 from loguru import logger
 from pydantic import BaseModel
 
-from api.dependencies import DataContext, get_data_context
-from api.dal import lecture_db
+from api.dependencies import DataContext, get_data_context, get_bucket, get_openai_client
+from api.dal import lecture_db, room_db
 from api.models.user_models import UserRole
-from api.dal import room_db
 from api.models.lecture_models import LectureWeekRes, ListLecturesRes
+from api.controllers import transcribe_controller
+
+from google.cloud.storage import Bucket
+from openai import OpenAI
 
 router = APIRouter(prefix="/lecture")
 
@@ -26,8 +29,19 @@ async def create_lecture(
     assert data_context.user_role == UserRole.TEACHER
 
     lecture_group_id = await lecture_db.get_this_week_lecture_group(data_context, body.room_id)
-    await lecture_db.insert_lecture(
-        data_context, body.room_id, lecture_group_id, body.file_path, body.title
+    await lecture_db.insert_lecture(data_context, lecture_group_id, body.file_path, body.title)
+
+
+@router.post("/group/{lecture_group_id}")
+async def transcribe_lecture_group(
+    lecture_group_id: str,
+    background_tasks: BackgroundTasks,
+    openai_client: OpenAI = Depends(get_openai_client),
+    bucket: Bucket = Depends(get_bucket),
+    data_context: DataContext = Depends(get_data_context),
+):
+    background_tasks.add_task(
+        transcribe_controller.transcribe, data_context, bucket, openai_client, lecture_group_id
     )
 
 

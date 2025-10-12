@@ -20,8 +20,12 @@ class TranscriptionListEntryUI(BaseModel):
     title: str
 
 
-class LlmMcqResponse(BaseModel):
+class LllmTaskSet(BaseModel):
     mcqs: list[LlmMcq]
+
+
+class LlmMcqResponse(BaseModel):
+    task_sets: list[LllmTaskSet]
 
 
 class UserDoc(BaseModel):

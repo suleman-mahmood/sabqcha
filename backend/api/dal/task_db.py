@@ -2,27 +2,29 @@ from api.dal import id_map
 from api.dependencies import DataContext
 from api.models.transcription_models import LlmMcq
 from api.utils import internal_id
-from api.models.task_models import Task, TaskSet
+from api.models.task_models import Task, TaskSet, WeekDay
 
 
-async def insert_task_set(data_context: DataContext, lecture_id: str, tasks: list[LlmMcq]) -> str:
+async def insert_task_set(
+    data_context: DataContext, lecture_group_id: str, tasks: list[LlmMcq], day: WeekDay
+) -> str:
     task_set_id = internal_id()
 
     async with data_context.get_cursor() as cur:
-        lecture_row_id = await id_map.get_lecture_row_id(cur, lecture_id)
-        assert lecture_row_id
+        lecture_group_row_id = await id_map.get_lecture_group_row_id(cur, lecture_group_id)
+        assert lecture_group_row_id
 
         await cur.execute(
             """
             insert into task_set (
-                public_id, lecture_row_id, day
+                public_id, lecture_group_row_id, day
             )
             values (
-                %s, %s, 'MONDAY'
+                %s, %s, %s
             )
             returning row_id
             """,
-            (task_set_id, lecture_row_id),
+            (task_set_id, lecture_group_row_id, day.value),
         )
         row = await cur.fetchone()
         assert row
@@ -62,7 +64,7 @@ async def get_task_set(data_context: DataContext, task_set_id: str) -> TaskSet |
             select
                 ts.public_id,
                 ts.day,
-                l.title,
+                r.display_name,
                 json_agg(
                     json_build_object(
                         'id', t.public_id,
@@ -73,12 +75,13 @@ async def get_task_set(data_context: DataContext, task_set_id: str) -> TaskSet |
                 ) as tasks
             from
                 task_set ts
-                join lecture l on l.row_id = ts.lecture_row_id
                 join task t on t.task_set_row_id = ts.row_id
+                join lecture_group lg on lg.row_id = ts.lecture_group_row_id
+                join room r on r.row_id = lg.room_row_id
             where
-                t.task_set_row_id = %s
+                ts.row_id = %s
             group by
-                ts.public_id, ts.day, l.title
+                ts.public_id, ts.day, r.display_name
             """,
             (task_set_row_id,),
         )

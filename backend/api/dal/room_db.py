@@ -63,9 +63,9 @@ async def list_rooms(data_context: DataContext, user_id: str, user_role: UserRol
                                 ts.public_id
                             from
                                 task_set ts
-                                join lecture l on
-                                    l.row_id = ts.lecture_row_id and
-                                    l.room_row_id = r.row_id
+                                join lecture_group lg on
+                                    lg.row_id = ts.lecture_group_row_id and
+                                    lg.room_row_id = r.row_id
                             order by ts.created_at desc
                             limit 1
                         ) as daily_task_set_id,
