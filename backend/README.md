@@ -1,8 +1,11 @@
-Create venv and install uv:
+Install uv (On macOS and Linux):
 ```
-python3 -m venv NAME_OF_VENV
-source NAME_OF_VENV/bin/activate
-pip3 install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Install packages:
+```
+uv sync
 ```
 
 Run backend server:
