@@ -57,6 +57,14 @@ async def get_room_row_id(cur: AsyncCursor, room_id: str) -> int | None:
     return row[0]
 
 
+async def get_lecture_group_row_id(cur: AsyncCursor, lecture_group_id: str) -> int | None:
+    await cur.execute("select row_id from lecture_group where public_id = %s", (lecture_group_id,))
+    row = await cur.fetchone()
+    if not row:
+        return None
+    return row[0]
+
+
 async def get_lecture_row_id(cur: AsyncCursor, lecture_id: str) -> int | None:
     await cur.execute("select row_id from lecture where public_id = %s", (lecture_id,))
     row = await cur.fetchone()

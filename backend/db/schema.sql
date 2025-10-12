@@ -1,4 +1,4 @@
-\restrict 4ktGQM0n9rCQWoraqzElvJSJlC0Hq1Kl4XQac6bLaINyxiDAdH82hXfXP6tFWfL
+\restrict C6OHDDw41M7heNrHcbfj82c2PhmUJVEVLA8cpW8ZhX4VdK52ERU2UgdUyA8X5sH
 
 -- Dumped from database version 16.4 (Debian 16.4-1.pgdg120+1)
 -- Dumped by pg_dump version 17.6
@@ -68,7 +68,34 @@ CREATE TABLE public.lecture (
     file_path text NOT NULL,
     title text NOT NULL,
     transcribed_content text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    lecture_group_row_id bigint
+);
+
+
+--
+-- Name: lecture_group; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.lecture_group (
+    row_id bigint NOT NULL,
+    public_id text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    room_row_id bigint NOT NULL
+);
+
+
+--
+-- Name: lecture_group_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.lecture_group ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.lecture_group_row_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
 );
 
 
@@ -250,7 +277,8 @@ CREATE TABLE public.task_set (
     public_id text NOT NULL,
     lecture_row_id bigint NOT NULL,
     day public.week_day NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    lecture_group_row_id bigint
 );
 
 
@@ -306,6 +334,22 @@ ALTER TABLE ONLY public.device_user
 
 ALTER TABLE ONLY public.device_user
     ADD CONSTRAINT device_user_pkey PRIMARY KEY (row_id);
+
+
+--
+-- Name: lecture_group lecture_group_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lecture_group
+    ADD CONSTRAINT lecture_group_pkey PRIMARY KEY (row_id);
+
+
+--
+-- Name: lecture_group lecture_group_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lecture_group
+    ADD CONSTRAINT lecture_group_public_id_key UNIQUE (public_id);
 
 
 --
@@ -445,6 +489,22 @@ ALTER TABLE ONLY public.device_user
 
 
 --
+-- Name: lecture_group lecture_group_room_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lecture_group
+    ADD CONSTRAINT lecture_group_room_row_id_fkey FOREIGN KEY (room_row_id) REFERENCES public.room(row_id);
+
+
+--
+-- Name: lecture lecture_lecture_group_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lecture
+    ADD CONSTRAINT lecture_lecture_group_row_id_fkey FOREIGN KEY (lecture_group_row_id) REFERENCES public.lecture_group(row_id);
+
+
+--
 -- Name: lecture lecture_room_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -493,6 +553,14 @@ ALTER TABLE ONLY public.student
 
 
 --
+-- Name: task_set task_set_lecture_group_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.task_set
+    ADD CONSTRAINT task_set_lecture_group_row_id_fkey FOREIGN KEY (lecture_group_row_id) REFERENCES public.lecture_group(row_id);
+
+
+--
 -- Name: task_set task_set_lecture_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -520,7 +588,7 @@ ALTER TABLE ONLY public.teacher
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 4ktGQM0n9rCQWoraqzElvJSJlC0Hq1Kl4XQac6bLaINyxiDAdH82hXfXP6tFWfL
+\unrestrict C6OHDDw41M7heNrHcbfj82c2PhmUJVEVLA8cpW8ZhX4VdK52ERU2UgdUyA8X5sH
 
 
 --
@@ -529,4 +597,6 @@ ALTER TABLE ONLY public.teacher
 
 INSERT INTO public.schema_migrations (version) VALUES
     ('20251009084223'),
-    ('20251011145552');
+    ('20251011145552'),
+    ('20251012080313'),
+    ('20251012083132');

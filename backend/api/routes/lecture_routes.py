@@ -1,14 +1,13 @@
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
+from loguru import logger
 from pydantic import BaseModel
-from google.cloud.storage import Bucket
-from openai import OpenAI
 
-from api.dependencies import DataContext, get_data_context, get_bucket, get_openai_client
+from api.dependencies import DataContext, get_data_context
 from api.dal import lecture_db
 from api.models.user_models import UserRole
-from api.controllers import transcribe_controller
 from api.dal import room_db
+from api.models.lecture_models import LectureWeekRes, ListLecturesRes
 
 router = APIRouter(prefix="/lecture")
 
@@ -22,31 +21,34 @@ class CreateLectureBody(BaseModel):
 @router.post("")
 async def create_lecture(
     body: CreateLectureBody,
-    background_tasks: BackgroundTasks,
     data_context: DataContext = Depends(get_data_context),
-    openai_client: OpenAI = Depends(get_openai_client),
-    bucket: Bucket = Depends(get_bucket),
 ):
     assert data_context.user_role == UserRole.TEACHER
 
-    lecture_id = await lecture_db.insert_lecture(
-        data_context, body.room_id, body.file_path, body.title
-    )
-
-    background_tasks.add_task(
-        transcribe_controller.transcribe, data_context, bucket, openai_client, lecture_id
+    lecture_group_id = await lecture_db.get_this_week_lecture_group(data_context, body.room_id)
+    await lecture_db.insert_lecture(
+        data_context, body.room_id, lecture_group_id, body.file_path, body.title
     )
 
 
-@router.get("/room/{room_id}")
+@router.get("/room/{room_id}", response_model=ListLecturesRes)
 async def list_lectures(room_id: str, data_context: DataContext = Depends(get_data_context)):
-    lectures = await lecture_db.list_lectures(data_context, room_id)
+    this_week, pas_weeks = await lecture_db.list_lectures_ui(data_context, room_id)
     room = await room_db.get_room(data_context, room_id)
     assert room
 
-    return JSONResponse(
-        {
-            "lectures": [le.model_dump(mode="json") for le in lectures],
-            **room.model_dump(mode="json"),
-        }
+    res = ListLecturesRes(
+        room=room,
+        this_week=this_week
+        or LectureWeekRes(
+            week_name="Current Week",
+            lecture_group_id="no-lecture-group-yet",
+            lectures=[],
+            task_sets=[],
+        ),
+        past_weeks=pas_weeks,
     )
+
+    logger.info("This week: {}", this_week)
+
+    return JSONResponse(res.model_dump(mode="json"))

@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
 type TaskSet = { id: string; day: "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" };
-type Lecture = { id: string; title: string; task_sets: TaskSet[] };
+type Lecture = { id: string; title: string; created_at: string };
+type Week = { lecture_group_id: string; week_name: string; lectures: Lecture[]; task_sets: TaskSet[] };
 
 export default function Page() {
     const params = useParams();
@@ -28,7 +29,7 @@ export default function Page() {
     const roomId: string = rawId ?? "";
 
     const [loading, setLoading] = useState(true);
-    const [lectures, setLectures] = useState<Lecture[]>([]);
+    const [weeks, setWeeks] = useState<Week[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [roomDisplayName, setRoomDisplayName] = useState<string>("");
     const [inviteCode, setInviteCode] = useState<string | null>(null);
@@ -42,20 +43,29 @@ export default function Page() {
                 const res = await fetch(`/api/lecture/room/${encodeURIComponent(roomId)}`);
                 if (!res.ok) {
                     const text = await res.text();
-                    throw new Error(text || "Failed to fetch lectures");
+                    throw new Error(text || "Failed to fetch room");
                 }
                 const data = await res.json();
                 if (!mounted) return;
 
-                // set room metadata if present
-                setRoomDisplayName(typeof data.display_name === 'string' ? data.display_name : "");
-                setInviteCode(typeof data.invite_code === 'string' ? data.invite_code : null);
-
-                if (Array.isArray(data.lectures)) {
-                    setLectures(data.lectures as Lecture[]);
+                // room metadata
+                if (data?.room) {
+                    setRoomDisplayName(typeof data.room.display_name === 'string' ? data.room.display_name : "");
+                    setInviteCode(typeof data.room.invite_code === 'string' ? data.room.invite_code : null);
                 } else {
-                    setLectures([]);
+                    setRoomDisplayName("");
+                    setInviteCode(null);
                 }
+
+                const newWeeks: Week[] = [];
+                if (data?.this_week && typeof data.this_week === 'object') {
+                    newWeeks.push(data.this_week as Week);
+                }
+                if (Array.isArray(data?.past_weeks)) {
+                    newWeeks.push(...(data.past_weeks as Week[]));
+                }
+
+                setWeeks(newWeeks);
             } catch (err: any) {
                 console.error(err);
                 if (mounted) setError(err?.message || "Failed to load");
@@ -76,7 +86,6 @@ export default function Page() {
     ];
 
     const handleTaskSetClick = (taskSetId: string) => {
-        // navigate to task page (implementation TODO)
         router.push(`/task-set/${taskSetId}`);
     };
 
@@ -111,7 +120,7 @@ export default function Page() {
                         <div>
                             <h1 className="text-2xl font-semibold">{roomDisplayName || "Room"}</h1>
                             {inviteCode && <p className="text-sm text-muted-foreground">Invite Code: {inviteCode}</p>}
-                            <p className="text-sm text-muted-foreground">Manage lectures and task sets.</p>
+                            <p className="text-sm text-muted-foreground">Manage lectures and weekly task sets.</p>
                         </div>
                         <div className="ml-4">
                             <Button variant="ghost" size="sm" onClick={() => router.back()}>Back to dashboard</Button>
@@ -123,44 +132,59 @@ export default function Page() {
                     <div className="mb-4 text-destructive">{error}</div>
                 )}
 
-                {lectures.length === 0 ? (
+                {weeks.length === 0 ? (
                     <Card className="p-6">
                         <CardContent>
-                            <p className="text-sm text-muted-foreground">No lectures found for this room.</p>
+                            <p className="text-sm text-muted-foreground">No weeks available for this room.</p>
                         </CardContent>
                     </Card>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {lectures.map((lec) => (
-                            lec.task_sets.map((ts) => (
-                                <Card key={ts.id} className="p-4">
-                                    <CardContent>
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="font-semibold">{lec.title || 'Untitled Lecture'}</p>
-                                                <p className="text-xs text-muted-foreground mt-1">Task set: {ts.id}</p>
-                                            </div>
-
-                                            <div className="flex items-center gap-2">
-                                                {DAYS.map((d) => {
-                                                    const isActive = d.key === ts.day;
-                                                    return (
-                                                        <Button
-                                                            key={d.key}
-                                                            size="sm"
-                                                            variant={isActive ? "default" : "ghost"}
-                                                            onClick={() => handleTaskSetClick(ts.id)}
-                                                            aria-label={`Select ${d.key}`}
-                                                        >
-                                                            {d.label}
-                                                        </Button>
-                                                    );
-                                                })}
-                                            </div>
+                        {weeks.map((week, idx) => (
+                            <Card key={week.lecture_group_id || `${idx}`} className="p-4">
+                                <CardContent>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div>
+                                            <p className="font-semibold">{week.week_name || 'Week'}</p>
+                                            <p className="text-xs text-muted-foreground mt-1">Lectures: {week.lectures?.length ?? 0}</p>
                                         </div>
-                                    </CardContent>
-                                </Card>
-                            ))
+                                    </div>
+
+                                    <div className="mb-3">
+                                        {week.lectures && week.lectures.length > 0 ? (
+                                            <ul className="space-y-2">
+                                                {week.lectures.map((lec) => (
+                                                    <li key={lec.id} className="text-sm">
+                                                        <div className="font-medium">{lec.title || 'Untitled'}</div>
+                                                        <div className="text-xs text-muted-foreground">{new Date(lec.created_at).toLocaleDateString()}</div>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">No lectures in this week.</p>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        {DAYS.map((d) => {
+                                            const ts = week.task_sets?.find((t) => t.day === d.key);
+                                            const present = !!ts;
+                                            return (
+                                                <Button
+                                                    key={d.key}
+                                                    size="sm"
+                                                    variant={present ? "default" : "ghost"}
+                                                    onClick={() => ts && handleTaskSetClick(ts.id)}
+                                                    disabled={!present}
+                                                    aria-label={`Select ${d.key}`}
+                                                >
+                                                    {d.label}
+                                                </Button>
+                                            );
+                                        })}
+                                    </div>
+                                </CardContent>
+                            </Card>
                         ))}
                     </div>
                 )}

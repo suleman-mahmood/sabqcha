@@ -1,6 +1,8 @@
+from datetime import datetime
 from pydantic import BaseModel
 
-from api.models.task_models import TaskSet
+from api.models.task_models import WeekDay
+from api.models.room_models import Room
 
 
 class Lecture(BaseModel):
@@ -11,7 +13,25 @@ class Lecture(BaseModel):
     transcribed_content: str | None
 
 
-class LectureEntry(BaseModel):
+class LectureEntryRes(BaseModel):
     id: str
     title: str
-    task_sets: list[TaskSet]
+    created_at: datetime
+
+
+class TaskSetRes(BaseModel):
+    id: str
+    day: WeekDay
+
+
+class LectureWeekRes(BaseModel):
+    lecture_group_id: str
+    week_name: str
+    lectures: list[LectureEntryRes]
+    task_sets: list[TaskSetRes]
+
+
+class ListLecturesRes(BaseModel):
+    room: Room
+    this_week: LectureWeekRes
+    past_weeks: list[LectureWeekRes]
