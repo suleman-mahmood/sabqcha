@@ -671,6 +671,16 @@ export default function Dashboard() {
                                                 >
                                                     Leaderboards
                                                 </Button>
+
+                                                {userRole !== "TEACHER" && (
+                                                    <Button
+                                                        className="mt-2 w-full"
+                                                        variant="outline"
+                                                        onClick={(e) => { e.stopPropagation(); router.push(`/room/${room.id}`); }}
+                                                    >
+                                                        View attempts
+                                                    </Button>
+                                                )}
                                             </CardContent>
                                         </Card>
                                     ))}

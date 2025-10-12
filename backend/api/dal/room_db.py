@@ -143,6 +143,36 @@ async def get_room(data_context: DataContext, room_id: str) -> Room | None:
     )
 
 
+async def get_student_room(data_context: DataContext, user_id: str, room_id: str) -> Room | None:
+    async with data_context.get_cursor() as cur:
+        student_row_id = await id_map.get_student_row_id(cur, user_id)
+        assert student_row_id
+
+        await cur.execute(
+            """
+            select
+                r.public_id,
+                r.display_name,
+                r.invite_code,
+                sr.score
+            from
+                room r
+                join student_room sr on
+                    sr.room_row_id = r.row_id and
+                    sr.student_row_id = %s
+            where
+                r.public_id = %s
+            """,
+            (student_row_id, room_id),
+        )
+        row = await cur.fetchone()
+        if not row:
+            return None
+    return Room(
+        id=row[0], display_name=row[1], invite_code=row[2], score=row[3], daily_task_set_id=None
+    )
+
+
 async def get_room_for_invite_code(data_context: DataContext, invite_code: str) -> str | None:
     async with data_context.get_cursor() as cur:
         await cur.execute("select public_id from room where invite_code = %s", (invite_code,))

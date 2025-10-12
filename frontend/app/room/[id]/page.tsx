@@ -28,6 +28,7 @@ export default function Page() {
 
     const roomId: string = rawId ?? "";
 
+    // Teacher view state
     const [loading, setLoading] = useState(true);
     const [weeks, setWeeks] = useState<Week[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -36,8 +37,51 @@ export default function Page() {
     const [inviteCode, setInviteCode] = useState<string | null>(null);
     const [generating, setGenerating] = useState<Record<string, boolean>>({});
 
+    // Student view state
+    type Attempt = { id: string; time_elapsed: number; correct_count: number; incorrect_count: number; skip_count: number; accuracy: number; created_at: string };
+    const [userRole, setUserRole] = useState<string | null>(null);
+    const [studentLoading, setStudentLoading] = useState(false);
+    const [attemptsData, setAttemptsData] = useState<{ room_id?: string; room_display_name?: string; score?: number; task_sets?: { id: string; day: string; attempts: Attempt[] }[] } | null>(null);
+
+    useEffect(() => {
+        // read role from localStorage for client-side role split
+        try {
+            const r = localStorage.getItem('user_role');
+            setUserRole(r);
+        } catch (e) {
+            setUserRole(null);
+        }
+    }, []);
+
     useEffect(() => {
         if (!roomId) return;
+        // If student, fetch attempts; otherwise fetch teacher data
+        if (userRole !== "TEACHER") {
+            let mounted = true;
+            const fetchAttempts = async () => {
+                setStudentLoading(true);
+                try {
+                    const res = await fetch(`/api/room/${encodeURIComponent(roomId)}/attempts`);
+                    if (!res.ok) {
+                        const text = await res.text();
+                        throw new Error(text || 'Failed to fetch attempts');
+                    }
+                    const data = await res.json();
+                    if (!mounted) return;
+                    setAttemptsData(data);
+                    setRoomDisplayName(typeof data.room_display_name === 'string' ? data.room_display_name : '');
+                } catch (err: any) {
+                    console.error(err);
+                    if (mounted) setError(err?.message || 'Failed to load attempts');
+                } finally {
+                    if (mounted) setStudentLoading(false);
+                }
+            };
+            fetchAttempts();
+            return () => { mounted = false; };
+        }
+
+        // Teacher fetch
         let mounted = true;
         const fetchData = async () => {
             setLoading(true);
@@ -77,7 +121,7 @@ export default function Page() {
         };
         fetchData();
         return () => { mounted = false; };
-    }, [roomId]);
+    }, [roomId, userRole]);
 
     const DAYS: { key: string; label: string }[] = [
         { key: "MONDAY", label: "M" },
@@ -124,6 +168,104 @@ export default function Page() {
         );
     }
 
+    // Student view rendering
+    if (userRole !== "TEACHER") {
+        if (studentLoading) {
+            return (
+                <div className="min-h-screen p-6 bg-background">
+                    <div className="max-w-4xl mx-auto">
+                        <div className="flex flex-col items-center py-10">
+                            <Spinner className="h-8 w-8 mb-4" />
+                            <p className="text-sm text-muted-foreground">Loading attempts...</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div className="min-h-screen p-6 bg-background">
+                <div className="max-w-4xl mx-auto">
+                    <div className="mb-6">
+                        <div className="flex items-center justify-between mb-2">
+                            <div>
+                                <h1 className="text-2xl font-semibold">{roomDisplayName || "Room"}</h1>
+                                <p className="text-sm text-muted-foreground">Your attempts for this room.</p>
+                            </div>
+                            <div className="ml-4">
+                                <Button variant="ghost" size="sm" onClick={() => router.back()}>← Back</Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {error && (
+                        <div className="mb-4 text-destructive">{error}</div>
+                    )}
+
+                    {!attemptsData || !Array.isArray(attemptsData.task_sets) || attemptsData.task_sets.length === 0 ? (
+                        <Card className="p-6">
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground">No attempts here yet.</p>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className="space-y-4">
+                            {attemptsData.task_sets.map((ts) => (
+                                <Card key={ts.id} className="p-4">
+                                    <CardContent>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div>
+                                                <p className="font-semibold">{ts.day || 'Task Set'}</p>
+                                                <p className="text-xs text-muted-foreground mt-1">Task set id: {ts.id}</p>
+                                            </div>
+                                            <div>
+                                                <Button size="sm" variant="outline" onClick={() => router.push(`/task-set/${ts.id}`)}>Retry</Button>
+                                            </div>
+                                        </div>
+
+                                        {Array.isArray(ts.attempts) && ts.attempts.length > 0 ? (
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-sm table-auto">
+                                                    <thead>
+                                                        <tr className="text-left text-xs text-muted-foreground">
+                                                            <th className="px-2 py-1">Attempt</th>
+                                                            <th className="px-2 py-1">Time</th>
+                                                            <th className="px-2 py-1">Correct</th>
+                                                            <th className="px-2 py-1">Incorrect</th>
+                                                            <th className="px-2 py-1">Skips</th>
+                                                            <th className="px-2 py-1">Accuracy</th>
+                                                            <th className="px-2 py-1">Date</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {ts.attempts.map((a, i) => (
+                                                            <tr key={a.id} className="border-t">
+                                                                <td className="px-2 py-2">#{i + 1}</td>
+                                                                <td className="px-2 py-2">{a.time_elapsed}s</td>
+                                                                <td className="px-2 py-2">{a.correct_count}</td>
+                                                                <td className="px-2 py-2">{a.incorrect_count}</td>
+                                                                <td className="px-2 py-2">{a.skip_count}</td>
+                                                                <td className="px-2 py-2">{a.accuracy}%</td>
+                                                                <td className="px-2 py-2">{new Date(a.created_at).toLocaleString()}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">No attempts for this task set.</p>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // Teacher view rendering (original)
     if (loading) {
         return (
             <div className="min-h-screen p-6 bg-background">

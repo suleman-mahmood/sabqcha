@@ -1,9 +1,17 @@
 import json
+from loguru import logger
 from api.dal import id_map
 from api.dependencies import DataContext
 from api.models.transcription_models import LlmMcq
 from api.utils import internal_id
-from api.models.task_models import Task, TaskAttempted, TaskSet, WeekDay
+from api.models.task_models import (
+    Task,
+    TaskAttempted,
+    TaskSet,
+    TaskSetAttemptRes,
+    TaskSetRes,
+    WeekDay,
+)
 
 
 async def insert_task_set(
@@ -137,3 +145,63 @@ async def get_task_set(data_context: DataContext, task_set_id: str) -> TaskSet |
             for t in row[3]
         ],
     )
+
+
+async def list_task_sets_for_room(data_context: DataContext, room_id: str) -> list[TaskSetRes]:
+    async with data_context.get_cursor() as cur:
+        room_row_id = await id_map.get_room_row_id(cur, room_id)
+        assert room_row_id
+
+        await cur.execute(
+            """
+            select
+                ts.public_id as task_set_id,
+                ts.day as task_set_day,
+                coalesce(
+                    json_agg(
+                        json_build_object (
+                            'id', tsa.public_id,
+                            'time_elapsed', tsa.time_elapsed,
+                            'correct', tsa.correct_count,
+                            'incorrect', tsa.incorrect_count,
+                            'skip', tsa.skip_count,
+                            'created_at', tsa.created_at
+                        )
+                    ) filter (where tsa.public_id is not null),
+                '[]'::json
+                ) as attempts
+            from
+                task_set ts
+                join lecture_group lg on lg.row_id = ts.lecture_group_row_id
+                join room r on r.row_id = lg.room_row_id
+                left join task_set_attempt tsa on tsa.task_set_row_id = ts.row_id
+            where
+                r.row_id = %s
+            group by
+                ts.public_id, ts.day, ts.created_at
+            order by ts.created_at desc
+            """,
+            (room_row_id,),
+        )
+        rows = await cur.fetchall()
+    logger.info("Res: {}", rows)
+    return [
+        TaskSetRes(
+            id=r[0],
+            day=r[1],
+            attempts=[
+                TaskSetAttemptRes(
+                    id=at["id"],
+                    time_elapsed=at["time_elapsed"],
+                    correct_count=at["correct"],
+                    incorrect_count=at["incorrect"],
+                    skip_count=at["skip"],
+                    accuracy=(float(at["correct"]) * 100.0)
+                    / float(at["correct"] + at["incorrect"] + at["skip"]),
+                    created_at=at["created_at"],
+                )
+                for at in r[2]
+            ],
+        )
+        for r in rows
+    ]

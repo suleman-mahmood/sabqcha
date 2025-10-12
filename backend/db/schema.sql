@@ -1,4 +1,4 @@
-\restrict DXoG2L2EBoubJd8GozJdcvGiRXwxNUEzPoBreC2sPYzBsf0hx84a2bRjmjR1C4X
+\restrict CmoS4cogCp58mSEqP4vx9adJvCGMELaKN52llxLHmnv9U4ySyyK08s4hurEuPr0
 
 -- Dumped from database version 16.4 (Debian 16.4-1.pgdg120+1)
 -- Dumped by pg_dump version 17.6
@@ -625,7 +625,7 @@ ALTER TABLE ONLY public.teacher
 -- PostgreSQL database dump complete
 --
 
-\unrestrict DXoG2L2EBoubJd8GozJdcvGiRXwxNUEzPoBreC2sPYzBsf0hx84a2bRjmjR1C4X
+\unrestrict CmoS4cogCp58mSEqP4vx9adJvCGMELaKN52llxLHmnv9U4ySyyK08s4hurEuPr0
 
 
 --
