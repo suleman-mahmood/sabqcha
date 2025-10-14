@@ -56,7 +56,7 @@ export default function Page() {
     useEffect(() => {
         if (!roomId) return;
         // If student, fetch attempts; otherwise fetch teacher data
-        if (userRole !== "TEACHER") {
+        if (userRole != undefined && userRole !== "TEACHER") {
             let mounted = true;
             const fetchAttempts = async () => {
                 setStudentLoading(true);

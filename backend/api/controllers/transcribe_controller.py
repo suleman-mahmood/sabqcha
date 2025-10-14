@@ -12,7 +12,7 @@ from openai import OpenAI
 
 from loguru import logger
 
-from api.exceptions import OpenAiApiError, UnsupportedFileExtError, UpliftAiApiError
+from api.exceptions import OpenAiApiError, UpliftAiApiError
 from api.models.transcription_models import LlmMcqResponse
 from api.prompts import MCQ_SYSTEM_PROMPT, generate_mcq_user_prompt
 from api.dal import lecture_db, task_db
@@ -25,8 +25,6 @@ AUDIO_CHUNK_LEN = 60  # In seconds
 
 UPLIFT_BASE_URL = "https://api.upliftai.org/v1"
 UPLIFT_API_KEY = os.getenv("UPLIFT_API_KEY")
-
-ALLOWED_AUDIO_VIDEO_EXTENSIONS = [".mp3", ".m4a", ".mp4"]
 
 
 async def transcribe(
@@ -92,12 +90,9 @@ async def transcribe_lecture(bucket: Bucket, file_path: str) -> str:
         input_file_name = storage_file.name
 
         if extension != ".mp3":
+            logger.info("Converting {} to .mp3", extension)
+
             output_file = tempfile.NamedTemporaryFile(suffix=".mp3", dir=temp_dir, delete=False)
-
-            if extension not in ALLOWED_AUDIO_VIDEO_EXTENSIONS:
-                logger.error("Invalid lecture extension: {}", extension)
-                raise UnsupportedFileExtError(f"Invalid lecture extension: {extension}")
-
             await utils.audio_video_to_mp3(storage_file.name, output_file.name)
             input_file_name = output_file.name
 

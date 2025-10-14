@@ -199,6 +199,17 @@ export default function Dashboard() {
             return;
         }
 
+        // Allow any audio/video file — validate by MIME type or common extensions if missing
+        const mime = file.type || '';
+        const isAudioOrVideo = mime.startsWith('audio') || mime.startsWith('video');
+        const fallbackExtensions = ['.mp3','.m4a','.wav','.aac','.ogg','.flac','.mp4','.mkv','.webm','.mov','.avi','.mpeg','.mpg','.wmv','.flv'];
+        const lower = file.name.toLowerCase();
+        const extMatch = fallbackExtensions.some(ext => lower.endsWith(ext));
+        if (!isAudioOrVideo && !extMatch) {
+            showError('Unsupported file type. Please upload an audio or video file.');
+            return;
+        }
+
         setUploading(true);
         const storageRef = ref(storage, `lecture/${file.name}`);
         const uploadTask = uploadBytesResumable(storageRef, file);
@@ -519,17 +530,17 @@ export default function Dashboard() {
                                         <div className="flex flex-col sm:flex-row items-center gap-3">
                                             <Button disabled={uploading || !lectureTitle || !selectedRoomId}>
                                                 <label className="cursor-pointer">
-                                                    {uploading ? 'Uploading...' : 'Select Audio File'}
+                                                    {uploading ? 'Uploading...' : 'Select Media File'}
                                                     <input
                                                         type="file"
-                                                        accept="audio/*"
+                                                        accept="audio/*,video/*"
                                                         hidden
                                                         onChange={(e) => e.target.files && handleUpload(e.target.files[0])}
                                                     />
                                                 </label>
                                             </Button>
 
-                                            <p className="text-sm text-muted-foreground">Supported: mp3</p>
+                                            <p className="text-sm text-muted-foreground">Supported: audio/video files</p>
                                         </div>
 
                                         {uploading && (
