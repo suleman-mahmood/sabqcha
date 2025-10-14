@@ -1,7 +1,10 @@
+import asyncio
 import os
 import random
 import base58
 import secrets
+import ffmpeg
+
 from loguru import logger
 
 import yt_dlp
@@ -47,6 +50,26 @@ def download_youtube_audio_temp(url: str, temp_dir: str) -> str:
     logger.info("Downloaded to audio file: {}", audio_file)
 
     return audio_file
+
+
+async def audio_video_to_mp3(input_path: str, output_path: str):
+    def _task():
+        (
+            ffmpeg.input(input_path)
+            .output(
+                output_path,
+                format="mp3",
+                acodec="libmp3lame",
+                ar="44100",
+                ac=2,
+                audio_bitrate="192k",
+                vn=None,
+            )
+            .run(quiet=True, overwrite_output=True)
+        )
+
+    await asyncio.to_thread(_task)
+    logger.info("Converted: {} → {}", input_path, output_path)
 
 
 _CUTE_NAMES = [

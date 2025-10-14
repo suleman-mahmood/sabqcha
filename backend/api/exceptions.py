@@ -4,3 +4,7 @@ class UpliftAiApiError(Exception):
 
 class OpenAiApiError(Exception):
     pass
+
+
+class UnsupportedFileExtError(Exception):
+    pass
