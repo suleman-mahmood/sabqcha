@@ -7,6 +7,8 @@ create table if not exists quiz (
   title text not null,
   answer_sheet_content text not null,
   rubric_content text not null,
+  answer_sheet_path text not null,
+  rubric_path text not null,
   created_by text not null,
   created_at timestamptz not null default now(),
   updated_by text,
@@ -18,6 +20,7 @@ create table if not exists student_solutions (
   public_id text not null unique,
   quiz_row_id bigint not null references quiz(row_id) on delete cascade,
   solution_content text not null,
+  solutions_path text not null,
   created_at timestamptz not null default now()
 );
 
