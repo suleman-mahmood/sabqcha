@@ -27,6 +27,7 @@ import {
     DialogTrigger,
     DialogClose,
 } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface Room {
     id: string;
@@ -105,6 +106,12 @@ export default function Dashboard() {
     const [loginPassword, setLoginPassword] = useState("");
     const [loginLoading, setLoginLoading] = useState(false);
     const [loginError, setLoginError] = useState<string | null>(null);
+
+    const [signupEmail, setSignupEmail] = useState("");
+    const [signupPassword, setSignupPassword] = useState("");
+    const [signupPasswordConfirm, setSignupPasswordConfirm] = useState("");
+    const [signupLoading, setSignupLoading] = useState(false);
+    const [signupError, setSignupError] = useState<string | null>(null);
 
     const [inviteOpen, setInviteOpen] = useState(false);
     const [inviteCode, setInviteCode] = useState("");
@@ -244,7 +251,7 @@ export default function Dashboard() {
         setLoginError(null);
         setLoginLoading(true);
         try {
-            const res = await fetch("/api/user/login-teacher", {
+            const res = await fetch("/api/user/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email: loginEmail, password: loginPassword }),
@@ -277,6 +284,51 @@ export default function Dashboard() {
             console.error(e);
             setLoginError("Network error");
             setLoginLoading(false);
+        }
+    };
+
+    const handleSignup = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        setSignupError(null);
+        if (signupPassword !== signupPasswordConfirm) {
+            setSignupError("Passwords do not match");
+            return;
+        }
+        setSignupLoading(true);
+        try {
+            const res = await fetch("/api/user/signup-student", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: signupEmail, password: signupPassword }),
+            });
+            if (!res.ok) {
+                let text = await res.text();
+                let errMsg = text;
+                try {
+                    const j = JSON.parse(text);
+                    if (j && j.message) errMsg = j.message;
+                } catch { }
+                setSignupError(errMsg || "Signup failed");
+                setSignupLoading(false);
+                return;
+            }
+            // success - close dialog and clear fields
+            setSignupLoading(false);
+            setLoginOpen(false);
+            setSignupEmail("");
+            setSignupPassword("");
+            setSignupPasswordConfirm("");
+
+            const data = await res.json();
+            if (data && typeof data.token === "string") {
+                login(data.token);
+                setIsLoggedIn(true);
+                await fetchRooms()
+            }
+        } catch (err) {
+            console.error(err);
+            setSignupError("Network error");
+            setSignupLoading(false);
         }
     };
 
@@ -355,7 +407,7 @@ export default function Dashboard() {
                         {user && user.userRole !== "TEACHER" && (
                             <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
                                 <DialogTrigger asChild>
-                                    <Button size="sm" variant="ghost">Add Code</Button>
+                                    <Button size="sm" variant="ghost">Add Invite Code</Button>
                                 </DialogTrigger>
 
                                 <DialogContent>
@@ -391,29 +443,65 @@ export default function Dashboard() {
 
                                 <DialogContent>
                                     <DialogHeader>
-                                        <DialogTitle>Teacher Login</DialogTitle>
-                                        <DialogDescription>Enter your email and password.</DialogDescription>
+                                        <DialogTitle>Account</DialogTitle>
+                                        <DialogDescription>Login or create a student account.</DialogDescription>
                                     </DialogHeader>
 
-                                    <form onSubmit={handleLogin} className="mt-4 grid gap-3">
-                                        <label className="text-sm">
-                                            Email
-                                            <input className="mt-1 w-full rounded-md border px-3 py-2" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} type="email" required />
-                                        </label>
-                                        <label className="text-sm">
-                                            Password
-                                            <input className="mt-1 w-full rounded-md border px-3 py-2" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} type="password" required />
-                                        </label>
+                                    <Tabs defaultValue="login" className="mt-4">
+                                        <TabsList>
+                                            <TabsTrigger value="login">Login</TabsTrigger>
+                                            <TabsTrigger value="signup">Student Sign Up</TabsTrigger>
+                                        </TabsList>
 
-                                        {loginError && <div className="text-sm text-destructive">{loginError}</div>}
+                                        <TabsContent value="login">
+                                            <form onSubmit={handleLogin} className="mt-4 grid gap-3">
+                                                <label className="text-sm">
+                                                    Email
+                                                    <input className="mt-1 w-full rounded-md border px-3 py-2" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} type="email" required />
+                                                </label>
+                                                <label className="text-sm">
+                                                    Password
+                                                    <input className="mt-1 w-full rounded-md border px-3 py-2" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} type="password" required />
+                                                </label>
 
-                                        <DialogFooter>
-                                            <DialogClose asChild>
-                                                <Button variant="outline">Cancel</Button>
-                                            </DialogClose>
-                                            <Button type="submit" disabled={loginLoading}>{loginLoading ? <Spinner /> : 'Login'}</Button>
-                                        </DialogFooter>
-                                    </form>
+                                                {loginError && <div className="text-sm text-destructive">{loginError}</div>}
+
+                                                <DialogFooter>
+                                                    <DialogClose asChild>
+                                                        <Button variant="outline">Cancel</Button>
+                                                    </DialogClose>
+                                                    <Button type="submit" disabled={loginLoading}>{loginLoading ? <Spinner /> : 'Login'}</Button>
+                                                </DialogFooter>
+                                            </form>
+                                        </TabsContent>
+
+                                        <TabsContent value="signup">
+                                            <form onSubmit={handleSignup} className="mt-4 grid gap-3">
+                                                <label className="text-sm">
+                                                    Email
+                                                    <input className="mt-1 w-full rounded-md border px-3 py-2" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} type="email" required />
+                                                </label>
+                                                <label className="text-sm">
+                                                    Password
+                                                    <input className="mt-1 w-full rounded-md border px-3 py-2" value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} type="password" required />
+                                                </label>
+                                                <label className="text-sm">
+                                                    Re-enter Password
+                                                    <input className="mt-1 w-full rounded-md border px-3 py-2" value={signupPasswordConfirm} onChange={(e) => setSignupPasswordConfirm(e.target.value)} type="password" required />
+                                                </label>
+
+                                                {signupError && <div className="text-sm text-destructive">{signupError}</div>}
+
+                                                <DialogFooter>
+                                                    <DialogClose asChild>
+                                                        <Button variant="outline">Cancel</Button>
+                                                    </DialogClose>
+                                                    <Button type="submit" disabled={signupLoading}>{signupLoading ? <Spinner /> : 'Sign up'}</Button>
+                                                </DialogFooter>
+                                            </form>
+                                        </TabsContent>
+                                    </Tabs>
+
                                 </DialogContent>
                             </Dialog>
                         ) : (
@@ -506,7 +594,7 @@ export default function Dashboard() {
                         </Card>
                     )}
 
-                    {user && user.userRole !== "TEACHER" && (
+                    {!isLoggedIn && user && user.userRole !== "TEACHER" && (
                         <Card className="md:col-span-2 p-6">
                             <CardContent>
                                 <div className="flex flex-col sm:flex-row items-start gap-4">
