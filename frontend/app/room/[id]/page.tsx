@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { useAuth } from "@/components/AuthProvider";
 
 type TaskSet = { id: string; day: "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" };
 type Lecture = { id: string; title: string; created_at: string };
@@ -14,6 +15,7 @@ export default function Page() {
     const params = useParams();
     const router = useRouter();
     const rawId = params?.id;
+    const { user } = useAuth();
 
     // Enforce that `id` is a single string, never an array
     if (Array.isArray(rawId)) {
@@ -39,24 +41,13 @@ export default function Page() {
 
     // Student view state
     type Attempt = { id: string; time_elapsed: number; correct_count: number; incorrect_count: number; skip_count: number; accuracy: number; created_at: string };
-    const [userRole, setUserRole] = useState<string | null>(null);
     const [studentLoading, setStudentLoading] = useState(false);
     const [attemptsData, setAttemptsData] = useState<{ room_id?: string; room_display_name?: string; score?: number; task_sets?: { id: string; day: string; attempts: Attempt[] }[] } | null>(null);
 
     useEffect(() => {
-        // read role from localStorage for client-side role split
-        try {
-            const r = localStorage.getItem('user_role');
-            setUserRole(r);
-        } catch (e) {
-            setUserRole(null);
-        }
-    }, []);
-
-    useEffect(() => {
         if (!roomId) return;
         // If student, fetch attempts; otherwise fetch teacher data
-        if (userRole != undefined && userRole !== "TEACHER") {
+        if (user && user.userRole !== "TEACHER") {
             let mounted = true;
             const fetchAttempts = async () => {
                 setStudentLoading(true);
@@ -121,7 +112,7 @@ export default function Page() {
         };
         fetchData();
         return () => { mounted = false; };
-    }, [roomId, userRole]);
+    }, [roomId]);
 
     const DAYS: { key: string; label: string }[] = [
         { key: "MONDAY", label: "M" },
@@ -169,7 +160,7 @@ export default function Page() {
     }
 
     // Student view rendering
-    if (userRole !== "TEACHER") {
+    if (user && user.userRole !== "TEACHER") {
         if (studentLoading) {
             return (
                 <div className="min-h-screen p-6 bg-background">

@@ -6,7 +6,7 @@ from api.dependencies import DataContext, get_data_context
 from api.dal import room_db
 from api.models.user_models import UserRole
 from api.dal import user_db
-from api.models.room_models import ListRoomsResponse
+from api.models.room_models import DashboardResponse
 from api.dal import task_db
 from api.models.task_models import ListTaskSetAttemptsRes
 
@@ -45,14 +45,14 @@ async def join_room(
     await room_db.join_room(data_context, room_id, data_context.user_id)
 
 
-@router.get("")
+@router.get("", response_model=DashboardResponse)
 async def list_rooms(data_context: DataContext = Depends(get_data_context)):
     user = await user_db.get_user(data_context, data_context.user_id)
     assert user
     rooms = await room_db.list_rooms(data_context, data_context.user_id, data_context.user_role)
 
     return JSONResponse(
-        ListRoomsResponse(
+        DashboardResponse(
             user_role=data_context.user_role, user_display_name=user.display_name, rooms=rooms
         ).model_dump(mode="json")
     )

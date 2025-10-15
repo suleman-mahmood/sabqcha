@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useRouter } from "next/navigation";
-import { useUser } from "@/components/UserProvider";
+import { useAuth } from "@/components/AuthProvider";
 import {
     Dialog,
     DialogContent,
@@ -86,8 +86,7 @@ export default function Dashboard() {
     const [rooms, setRooms] = useState<Room[]>([]);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
-    const { user, setUser } = useUser();
-    const [userRole, setUserRole] = useState<string | null>(null);
+    const { user, setUser, login, logout } = useAuth();
 
     // Dialog state for creating classroom
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -115,20 +114,29 @@ export default function Dashboard() {
     const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
     useEffect(() => {
-        let mounted = true;
         const initAuth = async () => {
             try {
                 const token = localStorage.getItem("token");
-                if (token) {
-                    if (mounted) setIsLoggedIn(localStorage.getItem("auth_method") === "password");
+                const authMethod = localStorage.getItem("auth_method");
+                if (token && authMethod) {
+                    setIsLoggedIn(authMethod === "password");
                 }
             } catch (e) {
                 console.error(e);
             }
         };
         initAuth();
-        return () => { mounted = false; };
     }, []);
+
+    useEffect(() => {
+        fetchRooms();
+    }, []);
+
+    useEffect(() => {
+        if (rooms.length && !selectedRoomId) {
+            setSelectedRoomId(rooms[0].id);
+        }
+    }, [rooms, selectedRoomId]);
 
     const showError = (msg: string) => {
         setErrorMessage(msg);
@@ -146,20 +154,8 @@ export default function Dashboard() {
             }
             const data = await res.json();
             // expected: { user_role, user_display_name, rooms: [ { id, display_name, invite_code } ] }
-            if (data.user_display_name) {
-                try {
-                    localStorage.setItem("display_name", data.user_display_name);
-                } catch (e) { }
-                // update context user
-                if (typeof setUser === "function") {
-                    setUser({ displayName: data.user_display_name, userId: localStorage.getItem("user_id") || "" });
-                }
-            }
-            if (data.user_role) {
-                setUserRole(data.user_role);
-                try {
-                    localStorage.setItem("user_role", data.user_role);
-                } catch (e) { }
+            if (data.user_display_name && data.user_role) {
+                setUser({ displayName: data.user_display_name, userRole: data.user_role });
             }
             if (Array.isArray(data.rooms)) {
                 const mapped: Room[] = data.rooms.map((r: any) => ({
@@ -178,15 +174,6 @@ export default function Dashboard() {
         }
     };
 
-    useEffect(() => {
-        fetchRooms();
-    }, []);
-
-    useEffect(() => {
-        if (rooms.length && !selectedRoomId) {
-            setSelectedRoomId(rooms[0].id);
-        }
-    }, [rooms, selectedRoomId]);
 
     const handleUpload = async (file: File) => {
         const title = lectureTitle.trim();
@@ -202,7 +189,7 @@ export default function Dashboard() {
         // Allow any audio/video file — validate by MIME type or common extensions if missing
         const mime = file.type || '';
         const isAudioOrVideo = mime.startsWith('audio') || mime.startsWith('video');
-        const fallbackExtensions = ['.mp3','.m4a','.wav','.aac','.ogg','.flac','.mp4','.mkv','.webm','.mov','.avi','.mpeg','.mpg','.wmv','.flv'];
+        const fallbackExtensions = ['.mp3', '.m4a', '.wav', '.aac', '.ogg', '.flac', '.mp4', '.mkv', '.webm', '.mov', '.avi', '.mpeg', '.mpg', '.wmv', '.flv'];
         const lower = file.name.toLowerCase();
         const extMatch = fallbackExtensions.some(ext => lower.endsWith(ext));
         if (!isAudioOrVideo && !extMatch) {
@@ -277,23 +264,12 @@ export default function Dashboard() {
 
             const data = await res.json();
             if (data && typeof data.token === "string") {
-                try {
-                    localStorage.setItem("token", data.token);
-                    try { localStorage.setItem("auth_method", "password"); } catch (e) { }
-                } catch (e) {
-                    console.warn("failed to save token", e);
-                }
+                login(data.token);
                 setLoginLoading(false);
                 setLoginOpen(false);
                 setIsLoggedIn(true);
-                // refresh rooms / user info
-                try {
-                    await fetchRooms();
-                } catch (e) {
-                    // ignore
-                }
+                await fetchRooms()
             } else {
-
                 setLoginError("Login response missing token");
                 setLoginLoading(false);
             }
@@ -329,45 +305,10 @@ export default function Dashboard() {
         }
     };
 
-    const logout = async () => {
-        try {
-            const authMethod = localStorage.getItem("auth_method");
-            const deviceId = localStorage.getItem("device_id");
-            // Remove current token / auth_method
-            try {
-                localStorage.removeItem("token");
-                localStorage.removeItem("auth_method");
-            } catch (e) { }
-
-            // If user was logged in via password, re-establish device token (become anonymous)
-            if (authMethod === "password" && deviceId) {
-                try {
-                    const res = await fetch(`/api/user/device/${encodeURIComponent(deviceId)}`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                    });
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data && typeof data.token === "string") {
-                            try { localStorage.setItem("token", data.token); } catch (e) { }
-                            try { localStorage.setItem("auth_method", "device"); } catch (e) { }
-                        }
-                    }
-                } catch (e) {
-                    console.warn("Failed to refresh device token after logout", e);
-                }
-            }
-
-        } catch (e) {
-            console.error("Logout error:", e);
-        } finally {
-            setIsLoggedIn(false);
-            try {
-                if (typeof setUser === "function") setUser(null as any);
-            } catch (e) { }
-            router.push("/");
-        }
-
+    const logoutUser = async () => {
+        logout();
+        setIsLoggedIn(false);
+        router.push("/");
     };
 
     const createRoom = async () => {
@@ -411,7 +352,7 @@ export default function Dashboard() {
 
                     <div className="flex items-center space-x-3">
                         {/* Invite code button in header */}
-                        {userRole !== "TEACHER" && (
+                        {user && user.userRole !== "TEACHER" && (
                             <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
                                 <DialogTrigger asChild>
                                     <Button size="sm" variant="ghost">Add Code</Button>
@@ -476,7 +417,7 @@ export default function Dashboard() {
                                 </DialogContent>
                             </Dialog>
                         ) : (
-                            <Button size="sm" variant="ghost" onClick={logout}>Logout</Button>
+                            <Button size="sm" variant="ghost" onClick={logoutUser}>Logout</Button>
                         )}
 
                         <ThemeToggle />
@@ -487,7 +428,7 @@ export default function Dashboard() {
 
                 {/* 🔸 Upload & Leaderboards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    {userRole === "TEACHER" && (
+                    {user && user.userRole === "TEACHER" && (
                         /* Upload card */
                         <Card className="md:col-span-2 p-6">
                             <CardContent>
@@ -565,7 +506,7 @@ export default function Dashboard() {
                         </Card>
                     )}
 
-                    {userRole !== "TEACHER" && (
+                    {user && user.userRole !== "TEACHER" && (
                         <Card className="md:col-span-2 p-6">
                             <CardContent>
                                 <div className="flex flex-col sm:flex-row items-start gap-4">
@@ -592,7 +533,7 @@ export default function Dashboard() {
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-xl font-semibold">Rooms</h2>
 
-                            {userRole === "TEACHER" && (
+                            {user && user.userRole === "TEACHER" && (
                                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                                     <DialogTrigger asChild>
                                         <Button size="sm">Create Classroom</Button>
@@ -641,13 +582,13 @@ export default function Dashboard() {
                                         <Card
                                             key={room.id}
                                             className="transition-all hover:shadow-lg cursor-pointer"
-                                            onClick={() => userRole === "TEACHER" ? router.push(`/room/${room.id}`) : null}
+                                            onClick={() => user && user.userRole === "TEACHER" ? router.push(`/room/${room.id}`) : null}
                                         >
                                             <CardContent className="p-4 text-center">
                                                 <p className="font-semibold text-foreground truncate">
                                                     {room.display_name || "Untitled Room"}
                                                 </p>
-                                                {userRole !== "TEACHER" && typeof room.score === "number" && (
+                                                {user && user.userRole !== "TEACHER" && typeof room.score === "number" && (
                                                     <p className="text-sm text-muted-foreground mt-1">Score: {room.score}</p>
                                                 )}
                                                 <div className="text-xs text-muted-foreground truncate mt-1 flex items-center justify-center gap-2">
@@ -659,7 +600,7 @@ export default function Dashboard() {
                                                         <span className="text-xs text-success">Copied</span>
                                                     )}
                                                 </div>
-                                                {userRole !== "TEACHER" && (
+                                                {user && user.userRole !== "TEACHER" && (
                                                     room.daily_task_set_id === null ? (
                                                         <Button className="mt-3 w-full" variant="outline" disabled>
                                                             Daily Task done!
@@ -683,7 +624,7 @@ export default function Dashboard() {
                                                     Leaderboards
                                                 </Button>
 
-                                                {userRole !== "TEACHER" && (
+                                                {user && user.userRole !== "TEACHER" && (
                                                     <Button
                                                         className="mt-2 w-full"
                                                         variant="outline"
