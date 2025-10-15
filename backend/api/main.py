@@ -12,6 +12,7 @@ from loguru import logger
 from psycopg_pool import AsyncConnectionPool
 
 from api.routes import task_routes
+from api.routes import quiz_routes
 from api.routes import leaderboard_routes
 from api.dependencies import get_cursor
 from api import dependencies
@@ -132,6 +133,7 @@ app.include_router(leaderboard_routes.router)
 app.include_router(lecture_routes.router)
 app.include_router(room_routes.router)
 app.include_router(task_routes.router)
+app.include_router(quiz_routes.router)
 
 
 @app.get("/health-check")
