@@ -17,3 +17,8 @@ For migrations, install dbmate:
 ```
 brew install dbmate
 ```
+
+Run the migrations
+
+```dbmate up
+```
