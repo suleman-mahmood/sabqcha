@@ -41,12 +41,21 @@ physics_p1_answers = [
     "pdf_images/ms-p2_p_14.jpg",
 ]
 
+physics_p1_solutions = [
+    "s-1.jpg",
+    "s-2.jpg",
+    "s-3.jpg",
+    "s-4.jpg",
+    "s-5.jpg",
+    "s-6.jpg",
+]
+
 
 def main():
     logger.info("Hello from grader!")
 
-    pdf_to_images("qp-p2.pdf")
-    pdf_to_images("ms-p2.pdf")
+    # pdf_to_images("qp-p2.pdf")
+    # pdf_to_images("ms-p2.pdf")
     # ocr_images(["pdf_images/qp-p2_p_4.jpg", "pdf_images/qp-p2_p_5.jpg"])
 
 
