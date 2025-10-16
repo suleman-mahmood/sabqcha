@@ -1,4 +1,4 @@
-\restrict xLofVGS808ajLcvhedxncA1KaL6WvxLeFjvTJ4I1ffCo4X2pp0d1EbBUEnbttzq
+\restrict JhWLtY5MQXp0YafTo5pEZx977lAJBvXj1yb5I6tyOrDSbYFSY1G14wdDwRJLotO
 
 -- Dumped from database version 16.4 (Debian 16.4-1.pgdg120+1)
 -- Dumped by pg_dump version 17.6
@@ -104,6 +104,40 @@ ALTER TABLE public.lecture_group ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDE
 
 ALTER TABLE public.lecture ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME public.lecture_row_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: quiz; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.quiz (
+    row_id bigint NOT NULL,
+    public_id text NOT NULL,
+    room_id bigint NOT NULL,
+    title text NOT NULL,
+    answer_sheet_content text NOT NULL,
+    rubric_content text NOT NULL,
+    answer_sheet_path text NOT NULL,
+    rubric_path text NOT NULL,
+    created_by text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by text,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: quiz_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.quiz ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.quiz_row_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -240,6 +274,34 @@ ALTER TABLE public.student ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY 
 
 
 --
+-- Name: student_solutions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.student_solutions (
+    row_id bigint NOT NULL,
+    public_id text NOT NULL,
+    quiz_row_id bigint NOT NULL,
+    solution_content text NOT NULL,
+    solutions_path text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: student_solutions_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.student_solutions ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.student_solutions_row_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: task; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -321,7 +383,8 @@ CREATE TABLE public.task_set_attempt (
     correct_count integer NOT NULL,
     incorrect_count integer NOT NULL,
     skip_count integer NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    student_row_id bigint
 );
 
 
@@ -426,6 +489,22 @@ ALTER TABLE ONLY public.lecture
 
 
 --
+-- Name: quiz quiz_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quiz
+    ADD CONSTRAINT quiz_pkey PRIMARY KEY (row_id);
+
+
+--
+-- Name: quiz quiz_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quiz
+    ADD CONSTRAINT quiz_public_id_key UNIQUE (public_id);
+
+
+--
 -- Name: room room_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -495,6 +574,22 @@ ALTER TABLE ONLY public.student
 
 ALTER TABLE ONLY public.student_room
     ADD CONSTRAINT student_room_pkey PRIMARY KEY (student_row_id, room_row_id);
+
+
+--
+-- Name: student_solutions student_solutions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.student_solutions
+    ADD CONSTRAINT student_solutions_pkey PRIMARY KEY (row_id);
+
+
+--
+-- Name: student_solutions student_solutions_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.student_solutions
+    ADD CONSTRAINT student_solutions_public_id_key UNIQUE (public_id);
 
 
 --
@@ -594,6 +689,14 @@ ALTER TABLE ONLY public.lecture
 
 
 --
+-- Name: quiz quiz_room_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quiz
+    ADD CONSTRAINT quiz_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.room(row_id) ON DELETE CASCADE;
+
+
+--
 -- Name: room room_teacher_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -634,11 +737,27 @@ ALTER TABLE ONLY public.student
 
 
 --
+-- Name: student_solutions student_solutions_quiz_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.student_solutions
+    ADD CONSTRAINT student_solutions_quiz_row_id_fkey FOREIGN KEY (quiz_row_id) REFERENCES public.quiz(row_id) ON DELETE CASCADE;
+
+
+--
 -- Name: task_set_analysis task_set_analysis_task_set_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.task_set_analysis
     ADD CONSTRAINT task_set_analysis_task_set_row_id_fkey FOREIGN KEY (task_set_row_id) REFERENCES public.task_set(row_id);
+
+
+--
+-- Name: task_set_attempt task_set_attempt_student_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.task_set_attempt
+    ADD CONSTRAINT task_set_attempt_student_row_id_fkey FOREIGN KEY (student_row_id) REFERENCES public.student(row_id);
 
 
 --
@@ -677,7 +796,7 @@ ALTER TABLE ONLY public.teacher
 -- PostgreSQL database dump complete
 --
 
-\unrestrict xLofVGS808ajLcvhedxncA1KaL6WvxLeFjvTJ4I1ffCo4X2pp0d1EbBUEnbttzq
+\unrestrict JhWLtY5MQXp0YafTo5pEZx977lAJBvXj1yb5I6tyOrDSbYFSY1G14wdDwRJLotO
 
 
 --
@@ -692,4 +811,6 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20251012105540'),
     ('20251012112211'),
     ('20251012134309'),
-    ('20251012161356');
+    ('20251012161356'),
+    ('20251015200630'),
+    ('20251016040045');

@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useUser } from "@/components/UserProvider";
+import { useAuth } from "@/components/AuthProvider";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 
 // Student MCQ view
@@ -62,7 +62,7 @@ function StudentTaskSet() {
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
     // Fetch TaskSet
-    const { user } = useUser();
+    const { user } = useAuth();
 
     useEffect(() => {
         const idParam = Array.isArray(task_set_id) ? task_set_id[0] : task_set_id;
@@ -465,17 +465,9 @@ function TeacherTaskSet() {
 
 // Page entry: choose view based on stored user role
 export default function TaskSetPageRouter() {
-    const [role, setRole] = useState<string | null>(null);
+    const { user } = useAuth();
 
-    useEffect(() => {
-        try {
-            const r = localStorage.getItem('user_role');
-            setRole(r);
-        } catch (e) {
-            setRole(null);
-        }
-    }, []);
 
-    if (role === 'TEACHER') return <TeacherTaskSet />;
+    if (user && user.userRole === 'TEACHER') return <TeacherTaskSet />;
     return <StudentTaskSet />;
 }

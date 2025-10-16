@@ -22,6 +22,7 @@ Content Guidelines:
 - Keep difficulty easy, suitable for quick recall and reinforcement.
 - Avoid ambiguous or trick questions.
 - Ensure only one correct answer per question.
+- Keep English as the language for tasks
 
 Question Style:
 - Use clear and concise wording.

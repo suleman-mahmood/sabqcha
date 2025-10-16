@@ -4,6 +4,8 @@ import random
 import base58
 import secrets
 import ffmpeg
+import datetime
+import calendar
 
 from loguru import logger
 
@@ -70,6 +72,34 @@ async def audio_video_to_mp3(input_path: str, output_path: str):
 
     await asyncio.to_thread(_task)
     logger.info("Converted: {} → {}", input_path, output_path)
+
+
+def week_to_text(year: int, week: int) -> str:
+    # Get the Monday of the given ISO week
+    monday = datetime.date.fromisocalendar(year, week, 1)
+    month_name = calendar.month_name[monday.month]
+
+    # Count how many ISO weeks fall in this month for that year
+    first_day = datetime.date(year, monday.month, 1)
+    _, days_in_month = calendar.monthrange(year, monday.month)
+    last_day = datetime.date(year, monday.month, days_in_month)
+
+    # Get all ISO weeks that intersect this month
+    all_weeks = sorted(
+        set(
+            datetime.date(year, monday.month, d).isocalendar()[1]
+            for d in range(1, days_in_month + 1)
+        )
+    )
+
+    # Find position of current week in the list
+    position = all_weeks.index(week) + 1
+
+    # Map week number in month → ordinal
+    ordinals = ["1st", "2nd", "3rd", "4th", "5th"]
+    week_ordinal = ordinals[position - 1] if position < len(all_weeks) else "Last"
+
+    return f"{week_ordinal} week of {month_name} {year}"
 
 
 _CUTE_NAMES = [

@@ -1,4 +1,6 @@
 from datetime import datetime
+
+from api import utils
 from api.dal import id_map
 from api.dependencies import DataContext
 from api.models.lecture_models import (
@@ -207,7 +209,7 @@ async def list_lectures_ui(
 
         week_obj = LectureWeekRes(
             lecture_group_id=group_id,
-            week_name=f"Week {w}, {y}",
+            week_name=utils.week_to_text(y, w),
             lectures=[LectureEntryRes(**lec) for lec in d["lectures"]],
             task_sets=[TaskSetRes(**ts) for ts in d["task_sets"]],
         )
