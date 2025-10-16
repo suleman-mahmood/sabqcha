@@ -6,6 +6,8 @@ from openai import OpenAI
 from loguru import logger
 from pdf2image import convert_from_path
 
+from api.prompts import GRADER_SYSTEM_PROMPT
+
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
@@ -56,7 +58,7 @@ def main():
 
     # pdf_to_images("qp-p2.pdf")
     # pdf_to_images("ms-p2.pdf")
-    # ocr_images(["pdf_images/qp-p2_p_4.jpg", "pdf_images/qp-p2_p_5.jpg"])
+    # grader()
 
 
 def encode_image(image_path) -> str:
@@ -65,31 +67,47 @@ def encode_image(image_path) -> str:
         return base64.b64encode(image_file.read()).decode("utf-8")
 
 
-def ocr_images(image_paths: list[str]) -> str:
-    base64_images = [encode_image(ip) for ip in image_paths]
-    model_input_images = [
-        {
-            "type": "input_image",
-            "image_url": f"data:image/jpeg;base64,{im}",
-        }
-        for im in base64_images
-    ]
+def get_model_input_for_img(path):
+    base64_image = encode_image(path)
+    return {
+        "type": "input_image",
+        "image_url": f"data:image/jpeg;base64,{base64_image}",
+    }
 
+
+def grader() -> str:
+    # "text": "Extract handwritten notes from the images provided",
+    # "text": "Extract printed text from the images, maintain the text structure",
     response = openai_client.responses.create(
         model="gpt-5-mini",
         input=[
+            {"role": "system", "content": GRADER_SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": [
                     {
                         "type": "input_text",
-                        # "text": "Extract handwritten notes from the images provided",
-                        # "text": "Extract printed text from the images, maintain the text structure",
-                        "text": "Solve Question 1 in the provided images",
+                        "text": "Rubric for grading guidelines:",
                     },
-                    *model_input_images,
+                    *[get_model_input_for_img(img) for img in physics_p1_rubrics],
+                    {
+                        "type": "input_text",
+                        "text": "Correct solution for reference:",
+                    },
+                    *[get_model_input_for_img(img) for img in physics_p1_answers],
+                    {
+                        "type": "input_text",
+                        "text": "Student's answer to be graded:",
+                    },
+                    *[get_model_input_for_img(img) for img in physics_p1_solutions],
+                    {
+                        "type": "input_text",
+                        "text": (
+                            "Grade the student's answer based on the rubric and correct solution."
+                        ),
+                    },
                 ],
-            }
+            },
         ],
     )
 
