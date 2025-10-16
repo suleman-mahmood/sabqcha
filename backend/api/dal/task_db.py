@@ -65,6 +65,7 @@ async def insert_task_set(
 
 async def insert_attempt(
     data_context: DataContext,
+    user_id: str,
     task_set_id: str,
     user_attempts: list[TaskAttempted],
     correct: int,
@@ -75,20 +76,23 @@ async def insert_attempt(
     attempt_id = internal_id()
 
     async with data_context.get_cursor() as cur:
+        student_row_id = await id_map.get_student_row_id(cur, user_id)
+        assert student_row_id
         task_set_row_id = await id_map.get_task_set_row_id(cur, task_set_id)
         assert task_set_row_id
 
         await cur.execute(
             """
             insert into task_set_attempt (
-                public_id, task_set_row_id, user_attempts, time_elapsed, correct_count, incorrect_count, skip_count
+                public_id, student_row_id, task_set_row_id, user_attempts, time_elapsed, correct_count, incorrect_count, skip_count
             )
             values (
-                %s, %s, %s::jsonb, %s, %s, %s, %s
+                %s, %s, %s, %s::jsonb, %s, %s, %s, %s
             )
             """,
             (
                 attempt_id,
+                student_row_id,
                 task_set_row_id,
                 json.dumps([ua.model_dump(mode="json") for ua in user_attempts]),
                 time_elapsed,
@@ -147,8 +151,12 @@ async def get_task_set(data_context: DataContext, task_set_id: str) -> TaskSet |
     )
 
 
-async def list_task_sets_for_room(data_context: DataContext, room_id: str) -> list[TaskSetRes]:
+async def list_task_sets_for_room(
+    data_context: DataContext, user_id: str, room_id: str
+) -> list[TaskSetRes]:
     async with data_context.get_cursor() as cur:
+        student_row_id = await id_map.get_student_row_id(cur, user_id)
+        assert student_row_id
         room_row_id = await id_map.get_room_row_id(cur, room_id)
         assert room_row_id
 
@@ -175,14 +183,16 @@ async def list_task_sets_for_room(data_context: DataContext, room_id: str) -> li
                 task_set ts
                 join lecture_group lg on lg.row_id = ts.lecture_group_row_id
                 join room r on r.row_id = lg.room_row_id
-                left join task_set_attempt tsa on tsa.task_set_row_id = ts.row_id
+                left join task_set_attempt tsa on
+                    tsa.task_set_row_id = ts.row_id and
+                    tsa.student_row_id = %s
             where
                 r.row_id = %s
             group by
                 ts.public_id, ts.day, ts.created_at
             order by ts.created_at desc
             """,
-            (room_row_id,),
+            (student_row_id, room_row_id),
         )
         rows = await cur.fetchall()
 
@@ -210,6 +220,24 @@ async def list_task_sets_for_room(data_context: DataContext, room_id: str) -> li
         )
         for r in rows
     ]
+
+
+async def migrate_attempts(data_context: DataContext, from_user_id: str, to_user_id: str):
+    async with data_context.get_cursor() as cur:
+        from_student_row_id = await id_map.get_student_row_id(cur, from_user_id)
+        assert from_student_row_id
+        to_student_row_id = await id_map.get_student_row_id(cur, to_user_id)
+        assert to_student_row_id
+
+        await cur.execute(
+            """
+            update task_set_attempt set
+                student_row_id = %s
+            where
+                student_row_id = %s
+            """,
+            (to_student_row_id, from_student_row_id),
+        )
 
 
 async def get_room_id_for_task_set(data_context: DataContext, task_set_id: str) -> str | None:

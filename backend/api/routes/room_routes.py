@@ -67,7 +67,7 @@ async def list_attempts(room_id: str, data_context: DataContext = Depends(get_da
     if not room.score:
         room.score = 0
 
-    task_sets = await task_db.list_task_sets_for_room(data_context, room_id)
+    task_sets = await task_db.list_task_sets_for_room(data_context, data_context.user_id, room_id)
     res = ListTaskSetAttemptsRes(
         score=room.score, room_display_name=room.display_name, room_id=room.id, task_sets=task_sets
     )

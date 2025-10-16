@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse, Response
+from loguru import logger
 from pydantic import BaseModel, EmailStr
 
 from api.dependencies import (
@@ -11,6 +12,8 @@ from api.dependencies import (
 from api.dal import session_db, user_db
 from api import utils
 from api.models.user_models import UserRole
+from api.dal import room_db
+from api.dal import task_db
 
 
 router = APIRouter(prefix="/user")
@@ -29,6 +32,7 @@ async def login_anonymous_user(
         await user_db.insert_device(data_context, user_id, device_id)
         await user_db.insert_student(data_context, user_id)
 
+    await session_db.expire_user_sessions(data_context, user_id)
     session_id = await session_db.insert_session(data_context, user_id)
 
     return JSONResponse({"token": session_id})
@@ -40,9 +44,7 @@ class LoginBody(BaseModel):
 
 
 @router.post("/login")
-async def login(
-    body: LoginBody, data_context: UnAuthDataContext = Depends(get_un_auth_data_context)
-):
+async def login(body: LoginBody, data_context: DataContext = Depends(get_data_context)):
     """Return teacher user associated with the email and password, and a login token"""
     user_id = await user_db.get_user_id_from_credentials(data_context, body.email, body.password)
 
@@ -57,8 +59,13 @@ async def login(
         assert auth_data
 
     if auth_data.role == UserRole.STUDENT:
-        # TODO: Merge existing local data with this user?
-        pass
+        # Move existing local data to this user
+        assert user_id == auth_data.user_id
+        assert data_context.user_id != user_id
+
+        logger.info("Migrating student data from {} to {}", data_context.user_id, user_id)
+        await room_db.migrate_rooms(data_context, data_context.user_id, user_id)
+        await task_db.migrate_attempts(data_context, data_context.user_id, user_id)
 
     return JSONResponse({"token": session_id})
 
@@ -97,7 +104,7 @@ async def signup_student(
     # We don't need a device id to recognize the user
     await user_db.remove_user_devices(data_context, data_context.user_id)
 
-    await session_db.expire_user_sessions(un_auth_data_context, data_context.user_id)
+    await session_db.expire_user_sessions(data_context, data_context.user_id)
     session_id = await session_db.insert_session(un_auth_data_context, data_context.user_id)
     return JSONResponse({"token": session_id})
 

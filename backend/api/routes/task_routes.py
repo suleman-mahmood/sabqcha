@@ -61,7 +61,14 @@ async def submit_task_set(
     assert room_id
     await room_db.update_user_score(data_context, data_context.user_id, room_id, score)
     await task_db.insert_attempt(
-        data_context, task_set_id, body.tasks, correct, incorrect, skip, body.time_elapsed
+        data_context,
+        data_context.user_id,
+        task_set_id,
+        body.tasks,
+        correct,
+        incorrect,
+        skip,
+        body.time_elapsed,
     )
 
 
@@ -101,7 +108,9 @@ async def _do_analysis(
 ):
     room_id = await task_db.get_room_id_for_task_set(data_context, task_set_id)
     assert room_id
-    all_task_sets = await task_db.list_task_sets_for_room(data_context, room_id)
+    all_task_sets = await task_db.list_task_sets_for_room(
+        data_context, data_context.user_id, room_id
+    )
 
     task_set_attempts: TaskSetRes | None = None
     for ts in all_task_sets:

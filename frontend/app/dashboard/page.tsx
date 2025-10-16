@@ -407,7 +407,7 @@ export default function Dashboard() {
                         {user && user.userRole !== "TEACHER" && (
                             <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
                                 <DialogTrigger asChild>
-                                    <Button size="sm" variant="ghost">Add Invite Code</Button>
+                                    <Button size="sm" variant="ghost">Join Classroom</Button>
                                 </DialogTrigger>
 
                                 <DialogContent>
@@ -444,7 +444,7 @@ export default function Dashboard() {
                                 <DialogContent>
                                     <DialogHeader>
                                         <DialogTitle>Account</DialogTitle>
-                                        <DialogDescription>Login or create a student account.</DialogDescription>
+                                        <DialogDescription className="text-sm text-foreground mt-2">Logging In / Signing Up will tie the local data to it.</DialogDescription>
                                     </DialogHeader>
 
                                     <Tabs defaultValue="login" className="mt-4">
