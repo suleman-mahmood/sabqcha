@@ -19,6 +19,7 @@ from api.prompts import (
     generate_mistake_user_prompt,
 )
 from api.exceptions import OpenAiApiError
+from api.dal import job_db
 
 
 router = APIRouter(prefix="/task")
@@ -89,22 +90,26 @@ async def analyze_task_set(
     data_context: DataContext = Depends(get_data_context),
     openai_client: OpenAI = Depends(get_openai_client),
 ):
-    recent_analysis = await task_db.get_recent_analysis(data_context, task_set_id)
+    identifier = f"{task_set_id}-{data_context.user_id}"
 
-    if recent_analysis:
-        analysis, in_progress = recent_analysis
+    in_progress = await job_db.get_job(data_context, identifier)
+    if in_progress is not None:
         if in_progress:
             return JSONResponse(in_progres_res)
         else:
-            return JSONResponse(analysis)
+            recent_analysis = await task_db.get_recent_mistake_analysis(
+                data_context, data_context.user_id, task_set_id
+            )
+            assert recent_analysis
+            return JSONResponse(recent_analysis)
 
-    analysis_id = await task_db.insert_pending_analysis(data_context, task_set_id)
-    background_tasks.add_task(_do_analysis, data_context, openai_client, task_set_id, analysis_id)
+    job_id = await job_db.insert_pending_job(data_context, identifier)
+    background_tasks.add_task(_do_analysis, data_context, openai_client, task_set_id, job_id)
     return JSONResponse(in_progres_res)
 
 
 async def _do_analysis(
-    data_context: DataContext, openai_client: OpenAI, task_set_id: str, analysis_id: str
+    data_context: DataContext, openai_client: OpenAI, task_set_id: str, job_id: str
 ):
     room_id = await task_db.get_room_id_for_task_set(data_context, task_set_id)
     assert room_id
@@ -173,8 +178,8 @@ async def _do_analysis(
         raise OpenAiApiError("Invalid response from OpenAI")
 
     res = llm_res.model_dump(mode="json")
-    await task_db.add_analysis(data_context, analysis_id, res)
-    return JSONResponse(res)
+    await job_db.complete_job(data_context, job_id)
+    await task_db.insert_analysis(data_context, data_context.user_id, task_set_id, res)
 
 
 @router.get("/set/{task_set_id}")
