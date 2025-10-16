@@ -22,12 +22,32 @@ logger.add(
     "<level>{message}</level>",
 )
 
+physics_p1_rubrics = [
+    "pdf_images/ms-p2_p_2.jpg",
+    "pdf_images/ms-p2_p_3.jpg",
+    "pdf_images/ms-p2_p_4.jpg",
+    "pdf_images/ms-p2_p_5.jpg",
+    "pdf_images/ms-p2_p_6.jpg",
+    "pdf_images/ms-p2_p_7.jpg",
+]
+
+physics_p1_answers = [
+    "pdf_images/ms-p2_p_8.jpg",
+    "pdf_images/ms-p2_p_9.jpg",
+    "pdf_images/ms-p2_p_10.jpg",
+    "pdf_images/ms-p2_p_11.jpg",
+    "pdf_images/ms-p2_p_12.jpg",
+    "pdf_images/ms-p2_p_13.jpg",
+    "pdf_images/ms-p2_p_14.jpg",
+]
+
 
 def main():
     logger.info("Hello from grader!")
 
-    # pdf_to_images("qp-p2.pdf")
-    ocr_images(["pdf_images/qp-p2_p_4.jpg", "pdf_images/qp-p2_p_5.jpg"])
+    pdf_to_images("qp-p2.pdf")
+    pdf_to_images("ms-p2.pdf")
+    # ocr_images(["pdf_images/qp-p2_p_4.jpg", "pdf_images/qp-p2_p_5.jpg"])
 
 
 def encode_image(image_path) -> str:
