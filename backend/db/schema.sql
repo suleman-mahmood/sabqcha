@@ -1,4 +1,4 @@
-\restrict JhWLtY5MQXp0YafTo5pEZx977lAJBvXj1yb5I6tyOrDSbYFSY1G14wdDwRJLotO
+\restrict ajxqBLetZAMp9hVoXw7ihIKeZGydQkvs9aF3ekyiNPIMfmTE6UrQx0PLajcd2ZX
 
 -- Dumped from database version 16.4 (Debian 16.4-1.pgdg120+1)
 -- Dumped by pg_dump version 17.6
@@ -58,6 +58,33 @@ ALTER TABLE public.device_user ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENT
 
 
 --
+-- Name: job; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.job (
+    row_id bigint NOT NULL,
+    public_id text NOT NULL,
+    identifier text NOT NULL,
+    in_progress boolean NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: job_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.job ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.job_row_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: lecture; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -104,6 +131,34 @@ ALTER TABLE public.lecture_group ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDE
 
 ALTER TABLE public.lecture ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME public.lecture_row_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: mistake_analysis; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.mistake_analysis (
+    row_id bigint NOT NULL,
+    public_id text NOT NULL,
+    task_set_row_id bigint NOT NULL,
+    student_row_id bigint NOT NULL,
+    analysis jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: mistake_analysis_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.mistake_analysis ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.mistake_analysis_row_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -343,34 +398,6 @@ CREATE TABLE public.task_set (
 
 
 --
--- Name: task_set_analysis; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.task_set_analysis (
-    row_id bigint NOT NULL,
-    public_id text NOT NULL,
-    task_set_row_id bigint NOT NULL,
-    in_progress boolean NOT NULL,
-    analysis jsonb DEFAULT '{}'::jsonb NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
---
--- Name: task_set_analysis_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-ALTER TABLE public.task_set_analysis ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.task_set_analysis_row_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
-
---
 -- Name: task_set_attempt; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -457,6 +484,30 @@ ALTER TABLE ONLY public.device_user
 
 
 --
+-- Name: job job_identifier_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.job
+    ADD CONSTRAINT job_identifier_key UNIQUE (identifier);
+
+
+--
+-- Name: job job_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.job
+    ADD CONSTRAINT job_pkey PRIMARY KEY (row_id);
+
+
+--
+-- Name: job job_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.job
+    ADD CONSTRAINT job_public_id_key UNIQUE (public_id);
+
+
+--
 -- Name: lecture_group lecture_group_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -486,6 +537,22 @@ ALTER TABLE ONLY public.lecture
 
 ALTER TABLE ONLY public.lecture
     ADD CONSTRAINT lecture_public_id_key UNIQUE (public_id);
+
+
+--
+-- Name: mistake_analysis mistake_analysis_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mistake_analysis
+    ADD CONSTRAINT mistake_analysis_pkey PRIMARY KEY (row_id);
+
+
+--
+-- Name: mistake_analysis mistake_analysis_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mistake_analysis
+    ADD CONSTRAINT mistake_analysis_public_id_key UNIQUE (public_id);
 
 
 --
@@ -609,22 +676,6 @@ ALTER TABLE ONLY public.task
 
 
 --
--- Name: task_set_analysis task_set_analysis_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.task_set_analysis
-    ADD CONSTRAINT task_set_analysis_pkey PRIMARY KEY (row_id);
-
-
---
--- Name: task_set_analysis task_set_analysis_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.task_set_analysis
-    ADD CONSTRAINT task_set_analysis_public_id_key UNIQUE (public_id);
-
-
---
 -- Name: task_set_attempt task_set_attempt_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -689,6 +740,22 @@ ALTER TABLE ONLY public.lecture
 
 
 --
+-- Name: mistake_analysis mistake_analysis_student_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mistake_analysis
+    ADD CONSTRAINT mistake_analysis_student_row_id_fkey FOREIGN KEY (student_row_id) REFERENCES public.student(row_id);
+
+
+--
+-- Name: mistake_analysis mistake_analysis_task_set_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mistake_analysis
+    ADD CONSTRAINT mistake_analysis_task_set_row_id_fkey FOREIGN KEY (task_set_row_id) REFERENCES public.task_set(row_id);
+
+
+--
 -- Name: quiz quiz_room_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -745,14 +812,6 @@ ALTER TABLE ONLY public.student_solutions
 
 
 --
--- Name: task_set_analysis task_set_analysis_task_set_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.task_set_analysis
-    ADD CONSTRAINT task_set_analysis_task_set_row_id_fkey FOREIGN KEY (task_set_row_id) REFERENCES public.task_set(row_id);
-
-
---
 -- Name: task_set_attempt task_set_attempt_student_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -796,7 +855,7 @@ ALTER TABLE ONLY public.teacher
 -- PostgreSQL database dump complete
 --
 
-\unrestrict JhWLtY5MQXp0YafTo5pEZx977lAJBvXj1yb5I6tyOrDSbYFSY1G14wdDwRJLotO
+\unrestrict ajxqBLetZAMp9hVoXw7ihIKeZGydQkvs9aF3ekyiNPIMfmTE6UrQx0PLajcd2ZX
 
 
 --
@@ -813,4 +872,6 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20251012134309'),
     ('20251012161356'),
     ('20251015200630'),
-    ('20251016040045');
+    ('20251016040045'),
+    ('20251016055812'),
+    ('20251016061007');

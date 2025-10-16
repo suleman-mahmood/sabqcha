@@ -19,7 +19,7 @@ from api.prompts import (
     generate_mistake_user_prompt,
 )
 from api.exceptions import OpenAiApiError
-from api.utils.job_utils import background_job_decorator
+from api.job_utils import background_job_decorator
 
 
 router = APIRouter(prefix="/task")
