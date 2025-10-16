@@ -21,7 +21,6 @@ async def insert_session(data_context: DataContext | UnAuthDataContext, user_id:
             """,
             (session_id, user_row_id),
         )
-        await cur.connection.commit()
         return session_id
 
 
@@ -36,7 +35,6 @@ async def expire_user_sessions(data_context: DataContext | UnAuthDataContext, us
             """,
             (user_row_id,),
         )
-        await cur.connection.commit()
 
 
 async def get_session(cur: AsyncCursor, session_id: str) -> AuthData | None:

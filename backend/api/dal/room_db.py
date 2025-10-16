@@ -247,4 +247,3 @@ async def update_user_score(
                 room_row_id,
             ),
         )
-        await cur.connection.commit()

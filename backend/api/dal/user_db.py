@@ -72,7 +72,6 @@ async def insert_user(data_context: UnAuthDataContext, display_name: str) -> str
             """,
             (user_id, display_name),
         )
-        await cur.connection.commit()
         return user_id
 
 
@@ -90,7 +89,6 @@ async def insert_device(data_context: UnAuthDataContext, user_id: str, device_id
             """,
             (device_id, user_row_id),
         )
-        await cur.connection.commit()
 
 
 async def insert_student(data_context: UnAuthDataContext, user_id: str):
@@ -107,7 +105,6 @@ async def insert_student(data_context: UnAuthDataContext, user_id: str):
             """,
             (user_row_id,),
         )
-        await cur.connection.commit()
 
 
 async def add_user_credentials(data_context: DataContext, user_id: str, email: str, password: str):
