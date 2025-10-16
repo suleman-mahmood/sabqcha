@@ -264,62 +264,57 @@ async def get_room_id_for_task_set(data_context: DataContext, task_set_id: str) 
     return row[0]
 
 
-async def insert_pending_analysis(data_context: DataContext, task_set_id: str) -> str:
-    analysis_id = internal_id()
-
+async def get_recent_mistake_analysis(
+    data_context: DataContext, user_id: str, task_set_id: str
+) -> dict | None:
     async with data_context.get_cursor() as cur:
-        task_set_row_id = await id_map.get_task_set_row_id(cur, task_set_id)
-        assert task_set_row_id
-
-        await cur.execute(
-            """
-            insert into task_set_analysis (
-                public_id, task_set_row_id, in_progress
-            )
-            values (
-                %s, %s, true
-            )
-            """,
-            (analysis_id, task_set_row_id),
-        )
-
-    return analysis_id
-
-
-async def get_recent_analysis(
-    data_context: DataContext, task_set_id: str
-) -> tuple[dict, bool] | None:
-    async with data_context.get_cursor() as cur:
+        student_row_id = await id_map.get_student_row_id(cur, user_id)
+        assert student_row_id
         task_set_row_id = await id_map.get_task_set_row_id(cur, task_set_id)
         assert task_set_row_id
 
         await cur.execute(
             """
             select
-                analysis,
-                in_progress
+                analysis
             from
-                task_set_analysis
+                mistake_analysis
             where
-                task_set_row_id = %s
+                task_set_row_id = %s and
+                student_row_id = %s
+            order by
+                created_at desc
+            limit 1
             """,
-            (task_set_row_id,),
+            (task_set_row_id, student_row_id),
         )
         row = await cur.fetchone()
         if not row:
             return None
-    return row[0], row[1]
+    return row[0]
 
 
-async def add_analysis(data_context: DataContext, analysis_id: str, analysis: dict):
+async def insert_analysis(
+    data_context: DataContext, user_id: str, task_set_id: str, analysis: dict
+) -> str:
+    analysis_id = internal_id()
+
     async with data_context.get_cursor() as cur:
+        task_set_row_id = await id_map.get_task_set_row_id(cur, task_set_id)
+        assert task_set_row_id
+        student_row_id = await id_map.get_student_row_id(cur, user_id)
+        assert student_row_id
+
         await cur.execute(
             """
-            update task_set_analysis set
-                analysis = %s::jsonb,
-                in_progress = false
-            where
-                public_id = %s
+            insert into mistake_analysis (
+                public_id, task_set_row_id, student_row_id, analysis
+            )
+            values (
+                %s, %s, %s, %s::jsonb
+            )
             """,
-            (json.dumps(analysis), analysis_id),
+            (analysis_id, task_set_row_id, student_row_id, json.dumps(analysis)),
         )
+
+    return analysis_id

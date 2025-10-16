@@ -40,9 +40,12 @@ async def transcribe_lecture_group(
     bucket: Bucket = Depends(get_bucket),
     data_context: DataContext = Depends(get_data_context),
 ):
-    background_tasks.add_task(
-        transcribe_controller.transcribe, data_context, bucket, openai_client, lecture_group_id
+    in_progress = await transcribe_controller.transcribe(
+        background_tasks, data_context, bucket, openai_client, lecture_group_id=lecture_group_id
     )
+    if in_progress:
+        return JSONResponse({"message": "Tasks are being generated..."})
+    return JSONResponse({"message": "Tasks generated, please refresh page"})
 
 
 @router.get("/room/{room_id}", response_model=ListLecturesRes)

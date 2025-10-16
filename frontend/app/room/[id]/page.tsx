@@ -139,8 +139,9 @@ export default function Page() {
                 const text = await res.text();
                 throw new Error(text || 'Failed to generate tasks');
             }
+            const data = await res.json();
 
-            setInfoMessage("Tasks are being generated, it will take approximately 5 mins, thank you for your patience! Revisit this page in a while and it will appear here");
+            setInfoMessage(data.message || "Tasks are being generated, it will take approximately 5 mins, thank you for your patience! Revisit this page in a while and it will appear here");
         } catch (err: any) {
             console.error(err);
             setError(err?.message || 'Failed to generate tasks');

@@ -79,10 +79,7 @@ def week_to_text(year: int, week: int) -> str:
     monday = datetime.date.fromisocalendar(year, week, 1)
     month_name = calendar.month_name[monday.month]
 
-    # Count how many ISO weeks fall in this month for that year
-    first_day = datetime.date(year, monday.month, 1)
     _, days_in_month = calendar.monthrange(year, monday.month)
-    last_day = datetime.date(year, monday.month, days_in_month)
 
     # Get all ISO weeks that intersect this month
     all_weeks = sorted(
