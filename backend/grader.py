@@ -1,3 +1,4 @@
+from io import BytesIO
 import os
 import base64
 import sys
@@ -5,6 +6,8 @@ import sys
 from openai import OpenAI
 from loguru import logger
 from pdf2image import convert_from_path
+from pydantic import BaseModel
+from PIL import Image, ImageDraw, ImageOps
 
 from api.prompts import GRADER_SYSTEM_PROMPT
 
@@ -59,6 +62,7 @@ def main():
     # pdf_to_images("qp-p2.pdf")
     # pdf_to_images("ms-p2.pdf")
     # grader()
+    draw_annotations()
 
 
 def encode_image(image_path) -> str:
@@ -152,6 +156,64 @@ def pdf_to_images(pdf_path: str, output_dir: str = "pdf_images", dpi: int = 300)
         logger.info("Saved {}", image_path)
 
     return image_paths
+
+
+class Anno(BaseModel):
+    x: float
+    y: float
+    width: float
+    height: float
+
+
+class AnnotationRes(BaseModel):
+    annotations: list[Anno]
+
+
+def draw_annotations():
+    img = Image.open("s-1-cropped.jpg")
+    img = ImageOps.exif_transpose(img)
+
+    buffer = BytesIO()
+    img.save(buffer, format="jpeg")
+    img_64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+    response = openai_client.responses.parse(
+        model="gpt-5-mini",
+        input=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": "Student's solution"},
+                    {
+                        "type": "input_image",
+                        "image_url": f"data:image/jpeg;base64,{img_64}",
+                    },
+                    {
+                        "type": "input_text",
+                        "text": """Return annotations around each question in the provided image.
+                            Each annotation should have: {x, y, width, height}.
+                            The coordinates should be normalized between 0 and 1 relative to image dimensions.
+                        """,
+                    },
+                ],
+            },
+        ],
+        text_format=AnnotationRes,
+    )
+    output = response.output_parsed
+    assert output
+
+    logger.info("Annotations: {}", output.model_dump(mode="json"))
+
+    draw = ImageDraw.Draw(img)
+    w, h = img.size
+
+    for ann in output.annotations:
+        x, y = ann.x * w, ann.y * h
+        ww, hh = ann.width * w, ann.height * h
+        draw.rectangle([x, y, x + ww, y + hh], outline="red", width=3)
+
+    img.save("annotated_answer.jpg")
 
 
 if __name__ == "__main__":
