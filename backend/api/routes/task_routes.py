@@ -4,6 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse
 from loguru import logger
 from openai import OpenAI
+from psycopg.errors import UniqueViolation
 from pydantic import BaseModel
 
 from api.dependencies import DataContext, get_data_context, get_openai_client
@@ -103,7 +104,11 @@ async def analyze_task_set(
             assert recent_analysis
             return JSONResponse(recent_analysis)
 
-    job_id = await job_db.insert_pending_job(data_context, identifier)
+    try:
+        job_id = await job_db.insert_pending_job(data_context, identifier)
+    except UniqueViolation:
+        return JSONResponse(in_progres_res)
+
     background_tasks.add_task(_do_analysis, data_context, openai_client, task_set_id, job_id)
     return JSONResponse(in_progres_res)
 
