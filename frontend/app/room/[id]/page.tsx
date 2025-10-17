@@ -1,23 +1,14 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/components/AuthProvider";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@radix-ui/react-dialog";
-import { DialogFooter, DialogHeader } from "@/components/ui/dialog";
-import { storage } from "@/lib/firebase";
-import { ref as storageRef, uploadBytesResumable } from "firebase/storage";
-
-// ===== Types from ORIGINAL =====
-type TaskSet = { id: string; day: "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" };
-type Lecture = { id: string; title: string; created_at: string };
-type Week = { lecture_group_id: string; week_name: string; lectures: Lecture[]; task_sets: TaskSet[] };
-
-// ===== New Quiz type =====
-type Quiz = { id: string; title: string; answer_sheet_path?: string | null; rubric_path?: string | null; created_at?: string };
+import { TeacherTasksSection } from "./components/TeacherTasksSection";
+import { QuizSection } from "./components/QuizSection";
+import type { Week } from "./types";
 
 export default function Page() {
     const params = useParams();
@@ -52,18 +43,26 @@ export default function Page() {
     const [studentLoading, setStudentLoading] = useState(false);
     const [attemptsData, setAttemptsData] = useState<{ room_id?: string; room_display_name?: string; score?: number; task_sets?: { id: string; day: string; attempts: Attempt[] }[] } | null>(null);
 
-    // ===== New: Quizzes state =====
-    const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-    const [quizzesLoading, setQuizzesLoading] = useState(false);
+    const normalizeMessage = (value: string | null) => {
+        if (!value) return null;
+        const trimmed = value.trim();
+        return trimmed.length ? trimmed : null;
+    };
 
-    // ===== New: Create Quiz dialog state =====
-    const [createOpen, setCreateOpen] = useState(false);
-    const [quizTitle, setQuizTitle] = useState("");
-    const [selectedLectureIds, setSelectedLectureIds] = useState<Record<string, boolean>>({});
-    const [answerFile, setAnswerFile] = useState<File | null>(null);
-    const [rubricFile, setRubricFile] = useState<File | null>(null);
-    const [creatingQuiz, setCreatingQuiz] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState<{ answer?: number; rubric?: number }>({});
+    const showInfo = (message: string | null) => {
+        const normalized = normalizeMessage(message);
+        setInfoMessage(normalized);
+        if (normalized) {
+            setError(null);
+        }
+    };
+    const showError = (message: string | null) => {
+        const normalized = normalizeMessage(message);
+        setError(normalized);
+        if (normalized) {
+            setInfoMessage(null);
+        }
+    };
 
     useEffect(() => {
         if (!roomId) return;
@@ -133,40 +132,17 @@ export default function Page() {
             }
         };
 
-        const fetchQuizzes = async () => {
-            setQuizzesLoading(true);
-            try {
-                const res = await fetch(`/api/quiz/room/${encodeURIComponent(roomId)}`);
-                if (!res.ok) throw new Error(await res.text() || "Failed to fetch quizzes");
-                const data = await res.json();
-                setQuizzes(Array.isArray(data) ? data.map((q: any) => ({ id: q.id ?? q.public_id, title: q.title, answer_sheet_path: q.answer_sheet_path || null, rubric_path: q.rubric_path || null, created_at: q.created_at })) : []);
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setQuizzesLoading(false);
-            }
-        };
-
         fetchData();
-        fetchQuizzes();
         return () => { mounted = false; };
     }, [roomId]);
-
-    const DAYS: { key: string; label: string }[] = [
-        { key: "MONDAY", label: "M" },
-        { key: "TUESDAY", label: "T" },
-        { key: "WEDNESDAY", label: "W" },
-        { key: "THURSDAY", label: "R" },
-        { key: "FRIDAY", label: "F" },
-    ];
 
     const handleTaskSetClick = (taskSetId: string) => {
         router.push(`/task-set/${taskSetId}`);
     };
 
     const handleGenerateTasks = async (lectureGroupId: string) => {
-        setError(null);
-        setInfoMessage(null);
+        showError(null);
+        showInfo(null);
         setGenerating((s) => ({ ...s, [lectureGroupId]: true }));
         try {
             const res = await fetch(`/api/lecture/group/${encodeURIComponent(lectureGroupId)}`, {
@@ -179,85 +155,12 @@ export default function Page() {
             }
             const data = await res.json();
 
-            setInfoMessage(data.message || "Tasks are being generated, it will take approximately 5 mins, thank you for your patience! Revisit this page in a while and it will appear here");
+            showInfo(data.message || "Tasks are being generated, it will take approximately 5 mins, thank you for your patience! Revisit this page in a while and it will appear here");
         } catch (err: any) {
             console.error(err);
-            setError(err?.message || 'Failed to generate tasks');
+            showError(err?.message || 'Failed to generate tasks');
         } finally {
             setGenerating((s) => ({ ...s, [lectureGroupId]: false }));
-        }
-    };
-
-    // ===== New: helpers for Quiz creation =====
-    const toggleLecture = (id: string) => setSelectedLectureIds(s => ({ ...s, [id]: !s[id] }));
-
-    const uploadToStorage = (file: File, destPath: string): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const sRef = storageRef(storage, destPath);
-            const task = uploadBytesResumable(sRef, file);
-            task.on(
-                "state_changed",
-                (snap: any) => {
-                    const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
-                    if (destPath.includes("/answer_")) setUploadProgress(p => ({ ...p, answer: pct }));
-                    if (destPath.includes("/rubric_")) setUploadProgress(p => ({ ...p, rubric: pct }));
-                },
-                (err) => reject(err),
-                async () => { resolve(destPath); }
-            );
-        });
-    };
-
-    const refreshQuizzes = async () => {
-        setQuizzesLoading(true);
-        try {
-            const res = await fetch(`/api/quiz/room/${encodeURIComponent(roomId)}`);
-            if (!res.ok) throw new Error(await res.text() || "Failed to fetch quizzes");
-            const data = await res.json();
-            setQuizzes(Array.isArray(data) ? data.map((q: any) => ({ id: q.id ?? q.public_id, title: q.title, answer_sheet_path: q.answer_sheet_path || null, rubric_path: q.rubric_path || null, created_at: q.created_at })) : []);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setQuizzesLoading(false);
-        }
-    };
-
-    const createQuiz = async () => {
-        setError(null);
-        if (!quizTitle.trim()) { setError("Title required"); return; }
-        const lectureIds = Object.keys(selectedLectureIds).filter(k => selectedLectureIds[k]);
-        if (lectureIds.length === 0) { setError("Select at least one lecture"); return; }
-
-        setCreatingQuiz(true);
-        try {
-            let answer_path: string | null = null;
-            let rubric_path: string | null = null;
-
-            if (answerFile) {
-                const dest = `quiz/${roomId}/answer_${Date.now()}_${answerFile.name}`;
-                await uploadToStorage(answerFile, dest);
-                answer_path = dest;
-            }
-            if (rubricFile) {
-                const dest = `quiz/${roomId}/rubric_${Date.now()}_${rubricFile.name}`;
-                await uploadToStorage(rubricFile, dest);
-                rubric_path = dest;
-            }
-
-            const body: any = { room_id: roomId, title: quizTitle, lecture_ids: lectureIds };
-            if (answer_path) body.answer_sheet_path = answer_path;
-            if (rubric_path) body.rubric_path = rubric_path;
-
-            const res = await fetch(`/api/quiz`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-            if (!res.ok) throw new Error(await res.text() || "Failed to create quiz");
-            await refreshQuizzes();
-            setCreateOpen(false);
-            setQuizTitle(""); setSelectedLectureIds({}); setAnswerFile(null); setRubricFile(null); setUploadProgress({});
-        } catch (err: any) {
-            console.error(err);
-            setError(err?.message || "Failed to create quiz");
-        } finally {
-            setCreatingQuiz(false);
         }
     };
 
@@ -407,168 +310,22 @@ export default function Page() {
                     <div className="mb-4 text-muted-foreground">{infoMessage}</div>
                 )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    {/* Weeks / Task sets (original content) */}
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                     <div className="lg:col-span-2">
-                        {weeks.length === 0 ? (
-                            <Card className="p-6">
-                                <CardContent>
-                                    <p className="text-sm text-muted-foreground">No weeks available for this room.</p>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {weeks.map((week, idx) => (
-                                    <Card key={week.lecture_group_id || `${idx}`} className="p-4">
-                                        <CardContent>
-                                            <div className="flex items-center justify-between mb-3">
-                                                <div>
-                                                    <p className="font-semibold">{week.week_name || 'Week'}</p>
-                                                    <p className="text-xs text-muted-foreground mt-1">Lectures: {week.lectures?.length ?? 0}</p>
-                                                </div>
-                                            </div>
-
-                                            <div className="mb-3">
-                                                {week.lectures && week.lectures.length > 0 ? (
-                                                    <ul className="space-y-2">
-                                                        {week.lectures.map((lec) => (
-                                                            <li key={lec.id} className="text-sm">
-                                                                <div className="font-medium">{lec.title || 'Untitled'}</div>
-                                                                <div className="text-xs text-muted-foreground">{new Date(lec.created_at).toLocaleDateString()}</div>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                ) : (
-                                                    <p className="text-sm text-muted-foreground">No lectures in this week.</p>
-                                                )}
-                                            </div>
-
-                                            <div className="flex items-center gap-2">
-                                                {Array.isArray(week.task_sets) && week.task_sets.length > 0 ? (
-                                                    DAYS.map((d) => {
-                                                        const ts = week.task_sets?.find((t) => t.day === d.key);
-                                                        const present = !!ts;
-                                                        return (
-                                                            <Button
-                                                                key={d.key}
-                                                                size="sm"
-                                                                variant={present ? "default" : "ghost"}
-                                                                onClick={() => ts && handleTaskSetClick(ts.id)}
-                                                                disabled={!present}
-                                                                aria-label={`Select ${d.key}`}
-                                                            >
-                                                                {d.label}
-                                                            </Button>
-                                                        );
-                                                    })
-                                                ) : (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="default"
-                                                        onClick={() => handleGenerateTasks(week.lecture_group_id)}
-                                                        disabled={!!generating[week.lecture_group_id] || !(week.lectures && week.lectures.length > 0)}
-                                                    >
-                                                        {generating[week.lecture_group_id] ? (
-                                                            <span className="flex items-center gap-2"><Spinner className="h-4 w-4" /> Generating...</span>
-                                                        ) : (
-                                                            'Generate Tasks'
-                                                        )}
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </div>
-                        )}
+                        <TeacherTasksSection
+                            weeks={weeks}
+                            generating={generating}
+                            onGenerateTasks={handleGenerateTasks}
+                            onTaskSetClick={handleTaskSetClick}
+                        />
                     </div>
-
-                    {/* Quizzes (new) */}
                     <div>
-                        <div className="flex items-center justify-between mb-3">
-                            <h2 className="text-lg font-semibold">Quizzes</h2>
-                            <div className="flex items-center gap-2">
-                                <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-                                    <DialogTrigger asChild><Button size="sm">Create Quiz</Button></DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>Create Quiz</DialogTitle>
-                                            <DialogDescription>Select lectures and optionally upload answer sheet / rubric or paste content.</DialogDescription>
-                                        </DialogHeader>
-
-                                        <div className="mt-4 space-y-3">
-                                            <label className="block">
-                                                <div className="text-sm font-medium">Title</div>
-                                                <input value={quizTitle} onChange={(e) => setQuizTitle(e.target.value)} className="mt-1 w-full rounded-md border px-3 py-2" placeholder="Quiz title" />
-                                            </label>
-
-                                            <div>
-                                                <div className="text-sm font-medium mb-2">Select Lectures</div>
-                                                <div className="max-h-40 overflow-auto border rounded p-2">
-                                                    {weeks.flatMap(w => w.lectures).length === 0 ? (
-                                                        <div className="text-sm text-muted-foreground">No lectures to select</div>
-                                                    ) : (
-                                                        weeks.flatMap(w => w.lectures).map((lec) => (
-                                                            <label key={lec.id} className="flex items-center gap-2 text-sm py-1">
-                                                                <input type="checkbox" checked={!!selectedLectureIds[lec.id]} onChange={() => toggleLecture(lec.id)} />
-                                                                <span>{lec.title || "Untitled"}</span>
-                                                            </label>
-                                                        ))
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            <div>
-                                                <div className="text-sm font-medium">Answer sheet </div>
-                                                <input type="file" accept="image/*,application/pdf" onChange={(e) => setAnswerFile(e.target.files?.[0] ?? null)} />
-                                                {uploadProgress.answer != null && <div className="text-xs mt-1">Answer upload: {uploadProgress.answer}%</div>}
-                                            </div>
-
-                                            <div>
-                                                <div className="text-sm font-medium">Rubric </div>
-                                                <input type="file" accept="image/*,application/pdf" onChange={(e) => setRubricFile(e.target.files?.[0] ?? null)} />
-                                                {uploadProgress.rubric != null && <div className="text-xs mt-1">Rubric upload: {uploadProgress.rubric}%</div>}
-                                            </div>
-                                        </div>
-
-                                        <DialogFooter>
-                                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                            <Button onClick={createQuiz} disabled={creatingQuiz}>{creatingQuiz ? <Spinner /> : "Create Quiz"}</Button>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
-
-                                <Button size="sm" variant="ghost" onClick={refreshQuizzes}>Refresh</Button>
-                            </div>
-                        </div>
-
-                        <Card>
-                            <CardContent>
-                                {quizzesLoading ? (
-                                    <div className="flex items-center gap-2"><Spinner /> <span className="text-sm">Loading quizzes…</span></div>
-                                ) : quizzes.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">No quizzes created yet.</p>
-                                ) : (
-                                    <ul className="space-y-2">
-                                        {quizzes.map(q => (
-                                            <li key={q.id} className="border rounded p-3">
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <div className="font-medium">{q.title}</div>
-                                                        {q.created_at && <div className="text-xs text-muted-foreground">{new Date(q.created_at).toLocaleString()}</div>}
-                                                    </div>
-                                                    <div className="text-right space-y-1">
-                                                        {q.answer_sheet_path ? <div className="text-xs text-muted-foreground">Answer: {q.answer_sheet_path}</div> : null}
-                                                        {q.rubric_path ? <div className="text-xs text-muted-foreground">Rubric: {q.rubric_path}</div> : null}
-                                                        <div className="mt-1"><Button size="sm" variant="ghost" onClick={() => router.push(`/quiz/${q.id}`)}>Open</Button></div>
-                                                    </div>
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </CardContent>
-                        </Card>
+                        <QuizSection
+                            roomId={roomId}
+                            weeks={weeks}
+                            onInfoMessage={(message) => showInfo(message || null)}
+                            onErrorMessage={(message) => showError(message || null)}
+                        />
                     </div>
                 </div>
             </div>
