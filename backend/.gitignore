@@ -6,3 +6,5 @@ firebase_credentials.json
 .venv/
 venv**
 .env
+
+pdf_images
