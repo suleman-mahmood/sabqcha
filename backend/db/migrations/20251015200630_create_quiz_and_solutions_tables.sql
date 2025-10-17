@@ -1,6 +1,6 @@
 -- migrate:up
 
-create table if not exists quiz (
+create table quiz (
   row_id bigint primary key generated always as identity,
   public_id text not null unique,
   room_id bigint not null references room(row_id) on delete cascade,
@@ -15,16 +15,17 @@ create table if not exists quiz (
   updated_at timestamptz not null default now()
 );
 
-create table if not exists student_solutions (
+create table student_solutions (
   row_id bigint primary key generated always as identity,
   public_id text not null unique,
   quiz_row_id bigint not null references quiz(row_id) on delete cascade,
-  solution_content text not null,
-  solutions_path text not null,
+  title text not null,
+  solution_path text not null,
+  solution_content text not null default '',
   created_at timestamptz not null default now()
 );
 
 -- migrate:down
 
-drop table if exists student_solutions cascade;
-drop table if exists quiz cascade;
+drop table student_solutions cascade;
+drop table quiz cascade;

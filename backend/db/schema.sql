@@ -336,8 +336,9 @@ CREATE TABLE public.student_solutions (
     row_id bigint NOT NULL,
     public_id text NOT NULL,
     quiz_row_id bigint NOT NULL,
-    solution_content text NOT NULL,
-    solutions_path text NOT NULL,
+    title text NOT NULL,
+    solution_path text NOT NULL,
+    solution_content text NOT NULL DEFAULT '',
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 

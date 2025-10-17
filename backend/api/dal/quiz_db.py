@@ -3,7 +3,7 @@ from typing import List
 from api.dal import id_map
 from api.dependencies import DataContext
 from api.utils import internal_id
-from api.models.quiz_model import Quiz
+from api.models.quiz_model import Quiz, StudentSolutions
 
 
 async def insert_quiz(
@@ -134,7 +134,7 @@ async def list_quizzes_for_room(data_context: DataContext, room_id: str) -> List
 
 
 async def insert_student_solution(
-    data_context: DataContext, quiz_id: str, solution_content: str
+    data_context: DataContext, quiz_id: str, title: str, solution_path: str
 ) -> str:
     solution_id = internal_id()
 
@@ -149,15 +149,58 @@ async def insert_student_solution(
         await cur.execute(
             """
             insert into student_solutions (
-                public_id, quiz_row_id, solution_content
+                public_id, quiz_row_id, title, solution_path, solution_content
             ) values (
-                %s, %s, %s
+                %s, %s, %s, %s, %s
             )
             """,
-            (solution_id, quiz_row_id, solution_content),
+            (solution_id, quiz_row_id, title, solution_path, ""),
         )
 
     return solution_id
+
+
+async def get_student_solution(
+    data_context: DataContext, solution_id: str
+) -> StudentSolutions | None:
+    async with data_context.get_cursor() as cur:
+        await cur.execute(
+            """
+            select
+                ss.public_id,
+                ss.title,
+                ss.solution_path,
+                ss.solution_content
+            from student_solutions ss
+            where ss.public_id = %s
+            """,
+            (solution_id,),
+        )
+        row = await cur.fetchone()
+
+    if not row:
+        return None
+
+    return StudentSolutions(
+        id=row[0],
+        title=row[1],
+        solution_path=row[2],
+        solution_content=row[3],
+    )
+
+
+async def update_student_solution_transcription(
+    data_context: DataContext, solution_id: str, solution_text: str | None
+) -> None:
+    async with data_context.get_cursor() as cur:
+        await cur.execute(
+            """
+            update student_solutions
+            set solution_content = %s
+            where public_id = %s
+            """,
+            (solution_text or "", solution_id),
+        )
 
 
 async def update_quiz_transcription(

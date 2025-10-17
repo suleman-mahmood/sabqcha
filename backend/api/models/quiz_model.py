@@ -16,4 +16,6 @@ class Quiz(BaseModel):
 
 class StudentSolutions(BaseModel):
     id: str
+    title: str
+    solution_path: str
     solution_content: str
