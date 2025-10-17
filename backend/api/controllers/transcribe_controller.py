@@ -9,12 +9,13 @@ from pathlib import Path
 
 from google.cloud.storage import Bucket
 from openai import OpenAI
+from api.dal import quiz_db
 
 from loguru import logger
 
 from api.exceptions import OpenAiApiError, UpliftAiApiError
 from api.models.transcription_models import LlmMcqResponse
-from api.prompts import MCQ_SYSTEM_PROMPT, generate_mcq_user_prompt
+from api.prompts import MCQ_SYSTEM_PROMPT, extract_text_from_file_prompt, generate_mcq_user_prompt
 from api.dal import lecture_db, task_db
 from api.dependencies import DataContext
 from api.models.task_models import WeekDay
@@ -184,12 +185,53 @@ async def transcribe_lecture(bucket: Bucket, file_path: str) -> str:
     return " ".join(all_transcripts)
 
 
+async def _extract_text_from_file(
+    bucket: Bucket, file_path: str, openai_client: OpenAI
+) -> str:
+    if not file_path:
+        return FileNotFoundError
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        file_path_obj = Path(file_path)
+        extension = file_path_obj.suffix or ""
+        storage_file = tempfile.NamedTemporaryFile(suffix=extension, dir=temp_dir, delete=False)
+        blob = bucket.blob(file_path)
+        await asyncio.to_thread(blob.download_to_filename, storage_file.name)
+
+        with open(storage_file.name, "rb") as f:
+            data = f.read()
+
+    try:
+        text_payload = data.decode("utf-8")
+    except UnicodeDecodeError:
+        text_payload = data.decode("utf-8", errors="ignore")
+
+    prompt = extract_text_from_file_prompt(text_payload)
+
+    try:
+        openai_res = await asyncio.to_thread(
+            openai_client.responses.parse,
+            model="gpt-5-mini",
+            input=[{"role": "user", "content": prompt}],
+        )
+    except Exception as e:
+        logger.exception("OpenAI call failed for {}: {}", file_path, e)
+        return OpenAiApiError(e)
+
+    try:
+        parsed = openai_res.output_parsed
+    except:
+        logger.error("OpenAI returned no parsed output for {}", file_path)
+        return 
+
+    return str(parsed)
+
+
 async def transcribe_quiz(
     data_context: DataContext, bucket: Bucket, openai_client: OpenAI, quiz_id: str
 ):
     """Download quiz files (answer sheet and rubric) from storage, run multimodal OCR,
     and update the quiz row with extracted text."""
-    from api.dal import quiz_db
 
     # Fetch current quiz record
     quiz = await quiz_db.get_quiz(data_context, quiz_id)
@@ -197,61 +239,38 @@ async def transcribe_quiz(
         logger.error("Quiz not found: {}", quiz_id)
         return
 
-    # Expect that at creation we may have stored file paths in answer_sheet_path / rubric_path
-    answer_field = getattr(quiz, "answer_sheet_path", None)
-    rubric_field = getattr(quiz, "rubric_path", None)
-
-    async def _extract_text_from_file(file_path: str) -> str:
-        if not file_path:
-            return ""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            file_path_obj = Path(file_path)
-            extension = file_path_obj.suffix
-            storage_file = tempfile.NamedTemporaryFile(suffix=extension, dir=temp_dir, delete=False)
-            blob = bucket.blob(file_path)
-            # download_to_filename is blocking; run in thread
-            await asyncio.to_thread(blob.download_to_filename, storage_file.name)
-
-            # Read bytes
-            with open(storage_file.name, "rb") as f:
-                data = f.read()
-
-            # Naive approach: send bytes as latin1-encoded string to the LLM prompt
-            text_payload = data.decode("latin-1")
-
-            # Call OpenAI in a thread
-            prompt = (
-                "Extract and return the plain text content of the following file. "
-                "Respond only with the extracted text.\nFILE_BYTES_BEGIN:\n" + text_payload + "\nFILE_BYTES_END"
-            )
-
-            try:
-                openai_res = await asyncio.to_thread(
-                    openai_client.responses.parse,
-                    model="gpt-5-mini",
-                    input=[{"role": "user", "content": prompt}],
-                )
-            except Exception as e:
-                logger.exception("OpenAI call failed: {}", e)
-                return ""
-
-            if getattr(openai_res, "output_parsed", None):
-                parsed = openai_res.output_parsed
-                return parsed if isinstance(parsed, str) else getattr(parsed, "text", "")
-
-            # fallback to raw text
-            try:
-                return openai_res.output_text or ""
-            except Exception:
-                return ""
+    answer_field = quiz.answer_sheet_path
+    rubric_field = quiz.rubric_path
 
     answer_text = ""
     rubric_text = ""
     if answer_field and "/" in answer_field:
-        answer_text = await _extract_text_from_file(answer_field)
+        answer_text = await _extract_text_from_file(bucket, answer_field, openai_client)
 
     if rubric_field and "/" in rubric_field:
-        rubric_text = await _extract_text_from_file(rubric_field)
+        rubric_text = await _extract_text_from_file(bucket, rubric_field, openai_client)
 
-    # Update DB
     await quiz_db.update_quiz_transcription(data_context, quiz_id, answer_text, rubric_text)
+
+
+async def transcribe_solution(
+    data_context: DataContext,
+    bucket: Bucket,
+    openai_client: OpenAI,
+    solution_id: str,
+):
+    solution = await quiz_db.get_student_solution(data_context, solution_id)
+    if not solution:
+        logger.error("Student solution not found: {}", solution_id)
+        return FileNotFoundError
+
+    if not solution.solution_path:
+        logger.error("Student solution {} is missing a storage path", solution_id)
+        return
+
+    solution_text = await _extract_text_from_file(bucket, solution.solution_path, openai_client)
+    await quiz_db.update_student_solution_transcription(
+        data_context,
+        solution_id,
+        solution_text,
+    )
