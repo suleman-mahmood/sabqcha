@@ -11,7 +11,7 @@ class Room(BaseModel):
     score: int | None
 
 
-class ListRoomsResponse(BaseModel):
+class DashboardResponse(BaseModel):
     user_role: UserRole
     user_display_name: str
     rooms: list[Room]

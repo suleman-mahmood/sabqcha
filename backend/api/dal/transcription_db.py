@@ -23,7 +23,6 @@ async def insert_transcription(
         (trans_id, file_path, title, user_row_id, content),
     )
 
-    await cur.connection.commit()
     return trans_id
 
 

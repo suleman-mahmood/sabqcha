@@ -1,3 +1,4 @@
+from io import BytesIO
 import os
 import base64
 import sys
@@ -5,6 +6,10 @@ import sys
 from openai import OpenAI
 from loguru import logger
 from pdf2image import convert_from_path
+from pydantic import BaseModel
+from PIL import Image, ImageDraw, ImageOps
+
+from api.prompts import GRADER_SYSTEM_PROMPT
 
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -22,12 +27,42 @@ logger.add(
     "<level>{message}</level>",
 )
 
+physics_p1_rubrics = [
+    "pdf_images/ms-p2_p_2.jpg",
+    "pdf_images/ms-p2_p_3.jpg",
+    "pdf_images/ms-p2_p_4.jpg",
+    "pdf_images/ms-p2_p_5.jpg",
+    "pdf_images/ms-p2_p_6.jpg",
+    "pdf_images/ms-p2_p_7.jpg",
+]
+
+physics_p1_answers = [
+    "pdf_images/ms-p2_p_8.jpg",
+    "pdf_images/ms-p2_p_9.jpg",
+    "pdf_images/ms-p2_p_10.jpg",
+    "pdf_images/ms-p2_p_11.jpg",
+    "pdf_images/ms-p2_p_12.jpg",
+    "pdf_images/ms-p2_p_13.jpg",
+    "pdf_images/ms-p2_p_14.jpg",
+]
+
+physics_p1_solutions = [
+    "s-1.jpg",
+    "s-2.jpg",
+    "s-3.jpg",
+    "s-4.jpg",
+    "s-5.jpg",
+    "s-6.jpg",
+]
+
 
 def main():
     logger.info("Hello from grader!")
 
     # pdf_to_images("qp-p2.pdf")
-    ocr_images(["pdf_images/qp-p2_p_4.jpg", "pdf_images/qp-p2_p_5.jpg"])
+    # pdf_to_images("ms-p2.pdf")
+    # grader()
+    draw_annotations()
 
 
 def encode_image(image_path) -> str:
@@ -36,31 +71,47 @@ def encode_image(image_path) -> str:
         return base64.b64encode(image_file.read()).decode("utf-8")
 
 
-def ocr_images(image_paths: list[str]) -> str:
-    base64_images = [encode_image(ip) for ip in image_paths]
-    model_input_images = [
-        {
-            "type": "input_image",
-            "image_url": f"data:image/jpeg;base64,{im}",
-        }
-        for im in base64_images
-    ]
+def get_model_input_for_img(path):
+    base64_image = encode_image(path)
+    return {
+        "type": "input_image",
+        "image_url": f"data:image/jpeg;base64,{base64_image}",
+    }
 
+
+def grader() -> str:
+    # "text": "Extract handwritten notes from the images provided",
+    # "text": "Extract printed text from the images, maintain the text structure",
     response = openai_client.responses.create(
         model="gpt-5-mini",
         input=[
+            {"role": "system", "content": GRADER_SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": [
                     {
                         "type": "input_text",
-                        # "text": "Extract handwritten notes from the images provided",
-                        # "text": "Extract printed text from the images, maintain the text structure",
-                        "text": "Solve Question 1 in the provided images",
+                        "text": "Rubric for grading guidelines:",
                     },
-                    *model_input_images,
+                    *[get_model_input_for_img(img) for img in physics_p1_rubrics],
+                    {
+                        "type": "input_text",
+                        "text": "Correct solution for reference:",
+                    },
+                    *[get_model_input_for_img(img) for img in physics_p1_answers],
+                    {
+                        "type": "input_text",
+                        "text": "Student's answer to be graded:",
+                    },
+                    *[get_model_input_for_img(img) for img in physics_p1_solutions],
+                    {
+                        "type": "input_text",
+                        "text": (
+                            "Grade the student's answer based on the rubric and correct solution."
+                        ),
+                    },
                 ],
-            }
+            },
         ],
     )
 
@@ -105,6 +156,64 @@ def pdf_to_images(pdf_path: str, output_dir: str = "pdf_images", dpi: int = 300)
         logger.info("Saved {}", image_path)
 
     return image_paths
+
+
+class Anno(BaseModel):
+    x: float
+    y: float
+    width: float
+    height: float
+
+
+class AnnotationRes(BaseModel):
+    annotations: list[Anno]
+
+
+def draw_annotations():
+    img = Image.open("s-1-cropped.jpg")
+    img = ImageOps.exif_transpose(img)
+
+    buffer = BytesIO()
+    img.save(buffer, format="jpeg")
+    img_64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+    response = openai_client.responses.parse(
+        model="gpt-5-mini",
+        input=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": "Student's solution"},
+                    {
+                        "type": "input_image",
+                        "image_url": f"data:image/jpeg;base64,{img_64}",
+                    },
+                    {
+                        "type": "input_text",
+                        "text": """Return annotations around each question in the provided image.
+                            Each annotation should have: {x, y, width, height}.
+                            The coordinates should be normalized between 0 and 1 relative to image dimensions.
+                        """,
+                    },
+                ],
+            },
+        ],
+        text_format=AnnotationRes,
+    )
+    output = response.output_parsed
+    assert output
+
+    logger.info("Annotations: {}", output.model_dump(mode="json"))
+
+    draw = ImageDraw.Draw(img)
+    w, h = img.size
+
+    for ann in output.annotations:
+        x, y = ann.x * w, ann.y * h
+        ww, hh = ann.width * w, ann.height * h
+        draw.rectangle([x, y, x + ww, y + hh], outline="red", width=3)
+
+    img.save("annotated_answer.jpg")
 
 
 if __name__ == "__main__":

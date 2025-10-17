@@ -24,7 +24,7 @@ async def get_user_id_from_device(data_context: UnAuthDataContext, device_id: st
 
 
 async def get_user_id_from_credentials(
-    data_context: UnAuthDataContext, email: str, password: str
+    data_context: UnAuthDataContext | DataContext, email: str, password: str
 ) -> str | None:
     async with data_context.get_cursor() as cur:
         await cur.execute(
@@ -43,6 +43,22 @@ async def get_user_id_from_credentials(
         return row[0] if row else None
 
 
+async def remove_user_devices(data_context: DataContext, user_id: str):
+    async with data_context.get_cursor() as cur:
+        user_row_id = await id_map.get_user_row_id(cur, user_id)
+        assert user_row_id
+
+        await cur.execute(
+            """
+            delete from
+                device_user
+            where
+                sabqcha_user_row_id = %s
+            """,
+            (user_row_id,),
+        )
+
+
 async def insert_user(data_context: UnAuthDataContext, display_name: str) -> str:
     user_id = internal_id()
 
@@ -56,7 +72,6 @@ async def insert_user(data_context: UnAuthDataContext, display_name: str) -> str
             """,
             (user_id, display_name),
         )
-        await cur.connection.commit()
         return user_id
 
 
@@ -74,7 +89,6 @@ async def insert_device(data_context: UnAuthDataContext, user_id: str, device_id
             """,
             (device_id, user_row_id),
         )
-        await cur.connection.commit()
 
 
 async def insert_student(data_context: UnAuthDataContext, user_id: str):
@@ -91,10 +105,23 @@ async def insert_student(data_context: UnAuthDataContext, user_id: str):
             """,
             (user_row_id,),
         )
-        await cur.connection.commit()
 
 
-async def get_user(data_context: DataContext, user_id: str) -> User | None:
+async def add_user_credentials(data_context: DataContext, user_id: str, email: str, password: str):
+    async with data_context.get_cursor() as cur:
+        await cur.execute(
+            """
+            update sabqcha_user set
+                email = %s,
+                password = %s
+            where
+                public_id = %s
+            """,
+            (email, password, user_id),
+        )
+
+
+async def get_user(data_context: DataContext | UnAuthDataContext, user_id: str) -> User | None:
     async with data_context.get_cursor() as cur:
         await cur.execute(
             """

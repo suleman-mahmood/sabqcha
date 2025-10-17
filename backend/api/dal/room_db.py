@@ -48,6 +48,31 @@ async def join_room(data_context: DataContext, room_id: str, student_id: str):
         )
 
 
+async def migrate_rooms(data_context: DataContext, from_user_id: str, to_user_id: str):
+    async with data_context.get_cursor() as cur:
+        from_student_row_id = await id_map.get_student_row_id(cur, from_user_id)
+        assert from_student_row_id
+        to_student_row_id = await id_map.get_student_row_id(cur, to_user_id)
+        assert to_student_row_id
+
+        await cur.execute(
+            """
+            with moved as (
+                delete from student_room as sr_old
+                where student_row_id = %s
+                returning sr_old.room_row_id, sr_old.score
+            )
+            insert into student_room (room_row_id, student_row_id, score)
+            select m.room_row_id, %s, m.score
+            from moved m
+            on conflict (room_row_id, student_row_id)
+            do update
+            set score = student_room.score + excluded.score;
+            """,
+            (from_student_row_id, to_student_row_id),
+        )
+
+
 async def list_rooms(data_context: DataContext, user_id: str, user_role: UserRole) -> list[Room]:
     async with data_context.get_cursor() as cur:
         match user_role:
@@ -222,4 +247,3 @@ async def update_user_score(
                 room_row_id,
             ),
         )
-        await cur.connection.commit()

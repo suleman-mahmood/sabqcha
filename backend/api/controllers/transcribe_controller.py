@@ -19,6 +19,7 @@ from api.dal import lecture_db, task_db
 from api.dependencies import DataContext
 from api.models.task_models import WeekDay
 from api import utils
+from api.job_utils import background_job_decorator
 
 MAX_AUDIO_DURATION = 60 * 60  # In seconds, 1 hour
 AUDIO_CHUNK_LEN = 60  # In seconds
@@ -27,6 +28,7 @@ UPLIFT_BASE_URL = "https://api.upliftai.org/v1"
 UPLIFT_API_KEY = os.getenv("UPLIFT_API_KEY")
 
 
+@background_job_decorator(lambda _, args, kwargs: kwargs.get("lecture_group_id") or args[2])
 async def transcribe(
     data_context: DataContext, bucket: Bucket, openai_client: OpenAI, lecture_group_id: str
 ):

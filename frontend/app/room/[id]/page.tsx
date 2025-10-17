@@ -5,9 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogTrigger, DialogClose } from "@/components/ui/dialog";
-import { storage } from "@/lib/firebase";
-import { ref as storageRef, uploadBytesResumable } from "firebase/storage";
+import { useAuth } from "@/components/AuthProvider";
 
 // ===== Types from ORIGINAL =====
 type TaskSet = { id: string; day: "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" };
@@ -21,6 +19,7 @@ export default function Page() {
     const params = useParams();
     const router = useRouter();
     const rawId = params?.id;
+    const { user } = useAuth();
 
     // Enforce that `id` is a single string, never an array
     if (Array.isArray(rawId)) {
@@ -46,7 +45,6 @@ export default function Page() {
 
     // ===== ORIGINAL: Student view types/state =====
     type Attempt = { id: string; time_elapsed: number; correct_count: number; incorrect_count: number; skip_count: number; accuracy: number; created_at: string };
-    const [userRole, setUserRole] = useState<string | null>(null);
     const [studentLoading, setStudentLoading] = useState(false);
     const [attemptsData, setAttemptsData] = useState<{ room_id?: string; room_display_name?: string; score?: number; task_sets?: { id: string; day: string; attempts: Attempt[] }[] } | null>(null);
 
@@ -66,20 +64,10 @@ export default function Page() {
     const [uploadProgress, setUploadProgress] = useState<{ answer?: number; rubric?: number }>({});
 
     useEffect(() => {
-        // read role from localStorage for client-side role split
-        try {
-            const r = localStorage.getItem('user_role');
-            setUserRole(r);
-        } catch (e) {
-            setUserRole(null);
-        }
-    }, []);
-
-    useEffect(() => {
         if (!roomId) return;
 
         // If student, fetch attempts; otherwise fetch teacher data
-        if (userRole != undefined && userRole !== "TEACHER") {
+        if (user && user.userRole !== "TEACHER") {
             let mounted = true;
             const fetchAttempts = async () => {
                 setStudentLoading(true);
@@ -160,7 +148,7 @@ export default function Page() {
         fetchData();
         fetchQuizzes();
         return () => { mounted = false; };
-    }, [roomId, userRole]);
+    }, [roomId]);
 
     const DAYS: { key: string; label: string }[] = [
         { key: "MONDAY", label: "M" },
@@ -187,8 +175,9 @@ export default function Page() {
                 const text = await res.text();
                 throw new Error(text || 'Failed to generate tasks');
             }
+            const data = await res.json();
 
-            setInfoMessage("Tasks are being generated, it will take approximately 5 mins, thank you for your patience! Revisit this page in a while and it will appear here");
+            setInfoMessage(data.message || "Tasks are being generated, it will take approximately 5 mins, thank you for your patience! Revisit this page in a while and it will appear here");
         } catch (err: any) {
             console.error(err);
             setError(err?.message || 'Failed to generate tasks');
@@ -282,8 +271,8 @@ export default function Page() {
         );
     }
 
-    // ===== ORIGINAL: Student view rendering =====
-    if (userRole !== "TEACHER") {
+    // Student view rendering
+    if (user && user.userRole !== "TEACHER") {
         if (studentLoading) {
             return (
                 <div className="min-h-screen p-6 bg-background">

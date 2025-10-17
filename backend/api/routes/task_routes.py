@@ -19,6 +19,7 @@ from api.prompts import (
     generate_mistake_user_prompt,
 )
 from api.exceptions import OpenAiApiError
+from api.job_utils import background_job_decorator
 
 
 router = APIRouter(prefix="/task")
@@ -61,7 +62,14 @@ async def submit_task_set(
     assert room_id
     await room_db.update_user_score(data_context, data_context.user_id, room_id, score)
     await task_db.insert_attempt(
-        data_context, task_set_id, body.tasks, correct, incorrect, skip, body.time_elapsed
+        data_context,
+        data_context.user_id,
+        task_set_id,
+        body.tasks,
+        correct,
+        incorrect,
+        skip,
+        body.time_elapsed,
     )
 
 
@@ -82,26 +90,32 @@ async def analyze_task_set(
     data_context: DataContext = Depends(get_data_context),
     openai_client: OpenAI = Depends(get_openai_client),
 ):
-    recent_analysis = await task_db.get_recent_analysis(data_context, task_set_id)
+    in_progress = await _do_analysis(
+        background_tasks, data_context, openai_client=openai_client, task_set_id=task_set_id
+    )
+    if not in_progress:
+        recent_analysis = await task_db.get_recent_mistake_analysis(
+            data_context, data_context.user_id, task_set_id
+        )
+        assert recent_analysis
+        return JSONResponse(recent_analysis)
 
-    if recent_analysis:
-        analysis, in_progress = recent_analysis
-        if in_progress:
-            return JSONResponse(in_progres_res)
-        else:
-            return JSONResponse(analysis)
-
-    analysis_id = await task_db.insert_pending_analysis(data_context, task_set_id)
-    background_tasks.add_task(_do_analysis, data_context, openai_client, task_set_id, analysis_id)
     return JSONResponse(in_progres_res)
 
 
-async def _do_analysis(
-    data_context: DataContext, openai_client: OpenAI, task_set_id: str, analysis_id: str
-):
+def _job_identifier(data_context: DataContext, _: tuple, kwargs: dict) -> str:
+    task_set_id: str | None = kwargs.get("task_set_id")
+    assert task_set_id
+    return f"{task_set_id}-{data_context.user_id}"
+
+
+@background_job_decorator(_job_identifier)
+async def _do_analysis(data_context: DataContext, openai_client: OpenAI, task_set_id: str):
     room_id = await task_db.get_room_id_for_task_set(data_context, task_set_id)
     assert room_id
-    all_task_sets = await task_db.list_task_sets_for_room(data_context, room_id)
+    all_task_sets = await task_db.list_task_sets_for_room(
+        data_context, data_context.user_id, room_id
+    )
 
     task_set_attempts: TaskSetRes | None = None
     for ts in all_task_sets:
@@ -164,8 +178,7 @@ async def _do_analysis(
         raise OpenAiApiError("Invalid response from OpenAI")
 
     res = llm_res.model_dump(mode="json")
-    await task_db.add_analysis(data_context, analysis_id, res)
-    return JSONResponse(res)
+    await task_db.insert_analysis(data_context, data_context.user_id, task_set_id, res)
 
 
 @router.get("/set/{task_set_id}")
