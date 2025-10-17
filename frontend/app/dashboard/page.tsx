@@ -205,7 +205,11 @@ export default function Dashboard() {
         }
 
         setUploading(true);
-        const storageRef = ref(storage, `lecture/${file.name}`);
+        // Generate a unique filename using timestamp + random string, preserve extension when possible
+        const fileExtMatch = file.name.match(/\.[a-z0-9]+$/i);
+        const ext = fileExtMatch ? fileExtMatch[0] : (file.type ? `.${file.type.split('/').pop()}` : '.bin');
+        const uniqueFileName = `${Date.now()}-${Math.random().toString(36).slice(2,9)}${ext}`;
+        const storageRef = ref(storage, `lecture/${uniqueFileName}`);
         const uploadTask = uploadBytesResumable(storageRef, file);
 
         uploadTask.on(
@@ -226,7 +230,7 @@ export default function Dashboard() {
                     const res = await fetch(`/api/lecture`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ room_id: selectedRoomId, title, file_path: `lecture/${file.name}` }),
+                        body: JSON.stringify({ room_id: selectedRoomId, title, file_path: `lecture/${uniqueFileName}` }),
                     });
                     if (!res.ok) {
                         const text = await res.text();
