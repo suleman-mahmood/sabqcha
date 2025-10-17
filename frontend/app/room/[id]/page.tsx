@@ -6,6 +6,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/components/AuthProvider";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@radix-ui/react-dialog";
+import { DialogFooter, DialogHeader } from "@/components/ui/dialog";
+import { storage } from "@/lib/firebase";
+import { ref as storageRef, uploadBytesResumable } from "firebase/storage";
 
 // ===== Types from ORIGINAL =====
 type TaskSet = { id: string; day: "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" };
@@ -58,8 +62,6 @@ export default function Page() {
     const [selectedLectureIds, setSelectedLectureIds] = useState<Record<string, boolean>>({});
     const [answerFile, setAnswerFile] = useState<File | null>(null);
     const [rubricFile, setRubricFile] = useState<File | null>(null);
-    const [answerContent, setAnswerContent] = useState("");
-    const [rubricContent, setRubricContent] = useState("");
     const [creatingQuiz, setCreatingQuiz] = useState(false);
     const [uploadProgress, setUploadProgress] = useState<{ answer?: number; rubric?: number }>({});
 
@@ -245,14 +247,12 @@ export default function Page() {
             const body: any = { room_id: roomId, title: quizTitle, lecture_ids: lectureIds };
             if (answer_path) body.answer_sheet_path = answer_path;
             if (rubric_path) body.rubric_path = rubric_path;
-            if (!answer_path && answerContent) body.answer_sheet_content = answerContent;
-            if (!rubric_path && rubricContent) body.rubric_content = rubricContent;
 
             const res = await fetch(`/api/quiz`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
             if (!res.ok) throw new Error(await res.text() || "Failed to create quiz");
             await refreshQuizzes();
             setCreateOpen(false);
-            setQuizTitle(""); setSelectedLectureIds({}); setAnswerFile(null); setRubricFile(null); setAnswerContent(""); setRubricContent(""); setUploadProgress({});
+            setQuizTitle(""); setSelectedLectureIds({}); setAnswerFile(null); setRubricFile(null); setUploadProgress({});
         } catch (err: any) {
             console.error(err);
             setError(err?.message || "Failed to create quiz");
@@ -519,18 +519,14 @@ export default function Page() {
                                             </div>
 
                                             <div>
-                                                <div className="text-sm font-medium">Answer sheet (optional file)</div>
+                                                <div className="text-sm font-medium">Answer sheet </div>
                                                 <input type="file" accept="image/*,application/pdf" onChange={(e) => setAnswerFile(e.target.files?.[0] ?? null)} />
-                                                <div className="text-xs text-muted-foreground mt-1">Or paste extracted text below instead of uploading.</div>
-                                                <textarea className="w-full border rounded mt-2 p-2" rows={4} placeholder="Paste answer sheet text (optional)" value={answerContent} onChange={(e) => setAnswerContent(e.target.value)} />
                                                 {uploadProgress.answer != null && <div className="text-xs mt-1">Answer upload: {uploadProgress.answer}%</div>}
                                             </div>
 
                                             <div>
-                                                <div className="text-sm font-medium">Rubric (optional file)</div>
+                                                <div className="text-sm font-medium">Rubric </div>
                                                 <input type="file" accept="image/*,application/pdf" onChange={(e) => setRubricFile(e.target.files?.[0] ?? null)} />
-                                                <div className="text-xs text-muted-foreground mt-1">Or paste rubric text below instead of uploading.</div>
-                                                <textarea className="w-full border rounded mt-2 p-2" rows={4} placeholder="Paste rubric text (optional)" value={rubricContent} onChange={(e) => setRubricContent(e.target.value)} />
                                                 {uploadProgress.rubric != null && <div className="text-xs mt-1">Rubric upload: {uploadProgress.rubric}%</div>}
                                             </div>
                                         </div>
