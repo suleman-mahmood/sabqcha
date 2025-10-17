@@ -19,3 +19,4 @@ class StudentSolutions(BaseModel):
     title: str
     solution_path: str
     solution_content: str
+    created_at_utc: datetime

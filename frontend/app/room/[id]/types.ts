@@ -23,3 +23,11 @@ export type Quiz = {
   rubric_path?: string | null;
   created_at?: string;
 };
+
+export type StudentSolution = {
+  id: string;
+  title: string;
+  solution_path: string;
+  solution_content: string;
+  created_at_utc?: string;
+};

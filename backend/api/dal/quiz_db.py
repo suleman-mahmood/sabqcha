@@ -170,7 +170,8 @@ async def get_student_solution(
                 ss.public_id,
                 ss.title,
                 ss.solution_path,
-                ss.solution_content
+                ss.solution_content,
+                ss.created_at
             from student_solutions ss
             where ss.public_id = %s
             """,
@@ -186,6 +187,7 @@ async def get_student_solution(
         title=row[1],
         solution_path=row[2],
         solution_content=row[3],
+        created_at_utc=row[4],
     )
 
 
@@ -218,3 +220,71 @@ async def update_quiz_transcription(
             """,
             (answer_text or "", rubric_text or "", data_context.user_id, quiz_id),
         )
+
+
+async def list_student_solutions_for_quiz(
+    data_context: DataContext, quiz_id: str
+) -> list[StudentSolutions]:
+    async with data_context.get_cursor() as cur:
+        await cur.execute(
+            """
+            select
+                ss.public_id,
+                ss.title,
+                ss.solution_path,
+                ss.solution_content,
+                ss.created_at
+            from student_solutions ss
+            join quiz q on q.row_id = ss.quiz_row_id
+            where q.public_id = %s
+            order by ss.created_at desc
+            """,
+            (quiz_id,),
+        )
+        rows = await cur.fetchall()
+
+    return [
+        StudentSolutions(
+            id=r[0],
+            title=r[1],
+            solution_path=r[2],
+            solution_content=r[3],
+            created_at_utc=r[4],
+        )
+        for r in rows
+    ]
+
+
+async def update_quiz_paths(
+    data_context: DataContext,
+    quiz_id: str,
+    *,
+    answer_sheet_path: str | None = None,
+    rubric_path: str | None = None,
+) -> None:
+    assignments: list[str] = []
+    params: list[str] = []
+
+    if answer_sheet_path is not None:
+        assignments.append("answer_sheet_path = %s")
+        params.append(answer_sheet_path)
+    if rubric_path is not None:
+        assignments.append("rubric_path = %s")
+        params.append(rubric_path)
+
+    if not assignments:
+        return
+
+    assignments.append("updated_by = %s")
+    params.append(data_context.user_id)
+    assignments.append("updated_at = now()")
+
+    query = f"""
+        update quiz
+        set {', '.join(assignments)}
+        where public_id = %s
+    """
+    params.append(quiz_id)
+
+    async with data_context.get_cursor() as cur:
+        await cur.execute(query, params)

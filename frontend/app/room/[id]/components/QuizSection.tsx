@@ -22,8 +22,8 @@ import type { Quiz, Week } from "../types";
 type QuizSectionProps = {
   roomId: string;
   weeks: Week[];
-  onInfoMessage?: (message: string) => void;
-  onErrorMessage?: (message: string) => void;
+  onInfoMessage?: (message: string | null) => void;
+  onErrorMessage?: (message: string | null) => void;
 };
 
 type UploadProgressState = {
@@ -63,6 +63,14 @@ export function QuizSection({
   const [solutionUpload, setSolutionUpload] = useState<number | null>(null);
   const [uploadingSolution, setUploadingSolution] = useState(false);
   const [gradingQuizId, setGradingQuizId] = useState<string | null>(null);
+  const [attachmentDialog, setAttachmentDialog] = useState<{
+    open: boolean;
+    quiz: Quiz | null;
+    kind: "answer" | "rubric" | null;
+  }>({ open: false, quiz: null, kind: null });
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentUpload, setAttachmentUpload] = useState<number | null>(null);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
 
   const allLectures = useMemo(
     () => weeks.flatMap((w) => w.lectures ?? []),
@@ -70,15 +78,15 @@ export function QuizSection({
   );
 
   const notifyInfo = useCallback(
-    (message: string) => {
-      onInfoMessage?.(message);
+    (message: string | null) => {
+      onInfoMessage?.(message ?? null);
     },
     [onInfoMessage],
   );
 
   const notifyError = useCallback(
-    (message: string) => {
-      onErrorMessage?.(message);
+    (message: string | null) => {
+      onErrorMessage?.(message ?? null);
     },
     [onErrorMessage],
   );
@@ -96,6 +104,12 @@ export function QuizSection({
     setSolutionFile(null);
     setSolutionUpload(null);
     setUploadingSolution(false);
+  };
+
+  const resetAttachmentState = () => {
+    setAttachmentFile(null);
+    setAttachmentUpload(null);
+    setUploadingAttachment(false);
   };
 
   const fetchQuizzes = useCallback(async () => {
@@ -137,7 +151,11 @@ export function QuizSection({
     setSelectedLectureIds((prev) => ({ ...prev, [lectureId]: !prev[lectureId] }));
   };
 
-  const uploadToStorage = (file: File, destPath: string, kind: "answer" | "rubric" | "solution") => {
+  const uploadToStorage = (
+    file: File,
+    destPath: string,
+    options?: { kind?: "answer" | "rubric"; onProgress?: (pct: number) => void },
+  ) => {
     return new Promise<string>((resolve, reject) => {
       const sRef = storageRef(storage, destPath);
       const task = uploadBytesResumable(sRef, file);
@@ -145,13 +163,13 @@ export function QuizSection({
         "state_changed",
         (snap) => {
           const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
-          if (kind === "answer") {
+          if (options?.kind === "answer") {
             setUploadProgress((prev) => ({ ...prev, answer: pct }));
-          } else if (kind === "rubric") {
-            setUploadProgress((prev) => ({ ...prev, rubric: pct }));
-          } else {
-            setSolutionUpload(pct);
           }
+          if (options?.kind === "rubric") {
+            setUploadProgress((prev) => ({ ...prev, rubric: pct }));
+          }
+          options?.onProgress?.(pct);
         },
         (err) => reject(err),
         () => resolve(destPath),
@@ -160,8 +178,8 @@ export function QuizSection({
   };
 
   const handleCreateQuiz = async () => {
-    notifyError("");
-    notifyInfo("");
+    notifyError(null);
+    notifyInfo(null);
 
     const title = quizTitle.trim();
     if (!title) {
@@ -181,11 +199,11 @@ export function QuizSection({
 
       if (answerFile) {
         const dest = `quiz/${roomId}/answer_${Date.now()}_${answerFile.name}`;
-        answerPath = await uploadToStorage(answerFile, dest, "answer");
+        answerPath = await uploadToStorage(answerFile, dest, { kind: "answer" });
       }
       if (rubricFile) {
         const dest = `quiz/${roomId}/rubric_${Date.now()}_${rubricFile.name}`;
-        rubricPath = await uploadToStorage(rubricFile, dest, "rubric");
+        rubricPath = await uploadToStorage(rubricFile, dest, { kind: "rubric" });
       }
 
       const body: Record<string, unknown> = {
@@ -230,8 +248,8 @@ export function QuizSection({
 
   const handleUploadSolution = async () => {
     if (!solutionDialog.quiz) return;
-    notifyError("");
-    notifyInfo("");
+    notifyError(null);
+    notifyInfo(null);
 
     const title = solutionTitle.trim();
     if (!title) {
@@ -246,7 +264,9 @@ export function QuizSection({
     setUploadingSolution(true);
     try {
       const dest = `quiz/${solutionDialog.quiz.id}/solutions/${Date.now()}_${solutionFile.name}`;
-      const storagePath = await uploadToStorage(solutionFile, dest, "solution");
+      const storagePath = await uploadToStorage(solutionFile, dest, {
+        onProgress: setSolutionUpload,
+      });
 
       const res = await fetch(
         `/api/quiz/${encodeURIComponent(solutionDialog.quiz.id)}/solutions`,
@@ -274,9 +294,68 @@ export function QuizSection({
     }
   };
 
+  const openAttachmentDialog = (quiz: Quiz, kind: "answer" | "rubric") => {
+    setAttachmentDialog({ open: true, quiz, kind });
+    resetAttachmentState();
+  };
+
+  const closeAttachmentDialog = () => {
+    setAttachmentDialog({ open: false, quiz: null, kind: null });
+    resetAttachmentState();
+  };
+
+  const handleUploadAttachment = async () => {
+    if (!attachmentDialog.quiz || !attachmentDialog.kind) return;
+    notifyError(null);
+    notifyInfo(null);
+
+    if (!attachmentFile) {
+      notifyError("Select a file to upload");
+      return;
+    }
+
+    setUploadingAttachment(true);
+    try {
+      const dest = `quiz/${attachmentDialog.quiz.id}/${attachmentDialog.kind}_${Date.now()}_${attachmentFile.name}`;
+      const storagePath = await uploadToStorage(attachmentFile, dest, {
+        onProgress: setAttachmentUpload,
+      });
+
+      const payload: Record<string, string | undefined> = {};
+      if (attachmentDialog.kind === "answer") {
+        payload.answer_sheet_path = storagePath;
+      }
+      if (attachmentDialog.kind === "rubric") {
+        payload.rubric_path = storagePath;
+      }
+
+      const res = await fetch(
+        `/api/quiz/${encodeURIComponent(attachmentDialog.quiz.id)}/attachments`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Failed to upload attachment");
+      }
+
+      notifyInfo("Attachment uploaded. Transcription scheduled.");
+      closeAttachmentDialog();
+      fetchQuizzes();
+    } catch (error: any) {
+      console.error("handleUploadAttachment failed", error);
+      notifyError(error?.message || "Failed to upload attachment");
+    } finally {
+      setUploadingAttachment(false);
+    }
+  };
+
   const handleGradeQuiz = async (quizId: string) => {
-    notifyError("");
-    notifyInfo("");
+    notifyError(null);
+    notifyInfo(null);
     setGradingQuizId(quizId);
     try {
       const res = await fetch(`/api/quiz/${encodeURIComponent(quizId)}/grade`, {
@@ -407,22 +486,44 @@ export function QuizSection({
                           {new Date(quiz.created_at).toLocaleString()}
                         </div>
                       )}
-                      <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                      <div className="mt-2 space-y-2 text-xs text-muted-foreground">
                         {quiz.answer_sheet_path ? (
                           <div>Answer: {quiz.answer_sheet_path}</div>
-                        ) : null}
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span>No answer sheet uploaded.</span>
+                            <Button
+                              size="xs"
+                              variant="outline"
+                              onClick={() => openAttachmentDialog(quiz, "answer")}
+                            >
+                              Upload
+                            </Button>
+                          </div>
+                        )}
                         {quiz.rubric_path ? (
                           <div>Rubric: {quiz.rubric_path}</div>
-                        ) : null}
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span>No rubric uploaded.</span>
+                            <Button
+                              size="xs"
+                              variant="outline"
+                              onClick={() => openAttachmentDialog(quiz, "rubric")}
+                            >
+                              Upload
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="space-y-2 text-right sm:text-left">
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => router.push(`/quiz/${quiz.id}`)}
+                        onClick={() => router.push(`/room/${roomId}/quiz/${quiz.id}`)}
                       >
-                        Open
+                        View Solutions
                       </Button>
                       <Button
                         size="sm"
@@ -489,6 +590,54 @@ export function QuizSection({
             </DialogClose>
             <Button onClick={handleUploadSolution} disabled={uploadingSolution}>
               {uploadingSolution ? <Spinner /> : "Upload"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={attachmentDialog.open}
+        onOpenChange={(open) => (!open ? closeAttachmentDialog() : null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Upload {attachmentDialog.kind === "rubric" ? "Rubric" : "Answer Sheet"}
+            </DialogTitle>
+            <DialogDescription>
+              Attach missing reference material so the quiz can be transcribed.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 space-y-3">
+            <div className="text-sm text-muted-foreground">
+              Quiz: {attachmentDialog.quiz?.title ?? "-"}
+            </div>
+            <div>
+              <div className="text-sm font-medium">File</div>
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={(e) => setAttachmentFile(e.target.files?.[0] ?? null)}
+              />
+              {attachmentUpload != null && (
+                <div className="mt-1 text-xs">Upload: {attachmentUpload}%</div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button
+                variant="outline"
+                onClick={closeAttachmentDialog}
+                disabled={uploadingAttachment}
+              >
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button onClick={handleUploadAttachment} disabled={uploadingAttachment}>
+              {uploadingAttachment ? <Spinner /> : "Upload"}
             </Button>
           </DialogFooter>
         </DialogContent>

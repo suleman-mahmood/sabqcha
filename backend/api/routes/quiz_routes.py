@@ -24,6 +24,10 @@ class UploadSolutionBody(BaseModel):
     title: str
     solution_path: str
 
+class UpdateAttachmentsBody(BaseModel):
+    answer_sheet_path: str | None = None
+    rubric_path: str | None = None
+
 @router.post("", status_code=201)
 async def create_quiz(
     body: CreateQuizBody,
@@ -108,3 +112,48 @@ async def upload_solution(
     )
 
     return JSONResponse({"id": solution_id})
+
+
+@router.get("/{quiz_id}/solutions")
+async def list_solutions(
+    quiz_id: str,
+    data_context: DataContext = Depends(get_data_context),
+):
+    assert data_context.user_role == UserRole.TEACHER
+    solutions = await quiz_db.list_student_solutions_for_quiz(data_context, quiz_id)
+    return JSONResponse([s.model_dump(mode="json") for s in solutions])
+
+
+@router.post("/{quiz_id}/attachments", status_code=202)
+async def upload_quiz_attachments(
+    quiz_id: str,
+    body: UpdateAttachmentsBody,
+    background_tasks: BackgroundTasks,
+    bucket: Bucket = Depends(get_bucket),
+    openai_client: OpenAI = Depends(get_openai_client),
+    data_context: DataContext = Depends(get_data_context),
+):
+    assert data_context.user_role == UserRole.TEACHER
+
+    answer_path = body.answer_sheet_path.strip() if body.answer_sheet_path else None
+    rubric_path = body.rubric_path.strip() if body.rubric_path else None
+
+    if not answer_path and not rubric_path:
+        raise HTTPException(status_code=400, detail="Provide answer_sheet_path and/or rubric_path")
+
+    await quiz_db.update_quiz_paths(
+        data_context,
+        quiz_id,
+        answer_sheet_path=answer_path,
+        rubric_path=rubric_path,
+    )
+
+    background_tasks.add_task(
+        transcribe_controller.transcribe_quiz,
+        data_context,
+        bucket,
+        openai_client,
+        quiz_id,
+    )
+
+    return JSONResponse({"status": "scheduled"})
