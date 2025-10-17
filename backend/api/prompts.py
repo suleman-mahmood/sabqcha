@@ -40,6 +40,13 @@ Consistency & Relevance:
 def generate_mcq_user_prompt(tr: str) -> str:
     return f"Lecture transcript: {tr}"
 
+def extract_text_from_file_prompt(file_payload: str) -> str:
+    return (
+        "Extract and return the plain text content of the following file. "
+        "Respond only with the extracted text.\nFILE_BYTES_BEGIN:\n"
+        f"{file_payload}\nFILE_BYTES_END"
+    )
+
 
 MISTAKE_ANALYSIS_SYSTEM_PROMPT = """
 System Prompt — Lecture Weak Concept Analyzer
