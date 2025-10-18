@@ -84,8 +84,8 @@ async def update_llm_contents_for_quiz(
         await cur.execute(
             """
             update quiz set
-                ms_llm_content_extract_row_id,
-                rubric_llm_content_extract_row_id
+                ms_llm_content_extract_row_id = %s,
+                rubric_llm_content_extract_row_id = %s
             where
                 public_id = %s
             """,
@@ -111,7 +111,7 @@ async def list_quizzes_for_room(data_context: DataContext, room_id: str) -> List
 async def list_quizes(
     data_context: DataContext, room_id: str | None = None, quiz_id: str | None = None
 ) -> list[Quiz]:
-    conditions: list[str] = []
+    conditions: list[sql.SQL] = []
     args: list[str | int] = []
 
     query = sql.SQL("""
@@ -125,29 +125,23 @@ async def list_quizes(
             r_lce.content as rubric_llm_content_extract_content
         from
             quiz q
-            join room r on r.row_id = q.room_id
+            join room r on r.row_id = q.room_row_id
             left join llm_content_extract ms_lce on ms_lce.row_id = q.ms_llm_content_extract_row_id
             left join llm_content_extract r_lce on r_lce.row_id = q.rubric_llm_content_extract_row_id
-        {0}
     """)
 
-    async with data_context.get_cursor() as cur:
-        if room_id:
-            room_row_id = await id_map.get_room_row_id(cur, room_id)
-            assert room_row_id
-            conditions.append("q.room_row_id = %s")
-            args.append(room_row_id)
+    if room_id:
+        conditions.append(sql.SQL("r.public_id = %s"))
+        args.append(room_id)
 
-        if quiz_id:
-            conditions.append("q.public_id = %s")
-            args.append(quiz_id)
+    if quiz_id:
+        conditions.append(sql.SQL("q.public_id = %s"))
+        args.append(quiz_id)
 
     async with data_context.get_model_cursor(Quiz) as cur:
         if conditions:
-            composed_query = query.format(sql.SQL("where ") + sql.SQL(" ").join(conditions))
-            await cur.execute(composed_query, args)
-        else:
-            await cur.execute(query, args)
+            query += sql.SQL(" where ") + sql.SQL(" and ").join(conditions)
+        await cur.execute(query, args)
 
         return await cur.fetchall()
 
@@ -203,26 +197,29 @@ async def list_student_solutions(
             q.public_id as quiz_id,
             ss.title,
             ss.solution_path,
-            ce.content as graded_llm_content_extract_content
+            lce.content as graded_llm_content_extract_content
         from 
             student_solution ss
             join quiz q on q.row_id = ss.quiz_row_id
-            left join llm_content_extract lce on ms_lce.row_id = q.graded_llm_content_extract_row_id
-        {0}
-        order by
-            ss.created_at desc
+            left join llm_content_extract lce on lce.row_id = ss.graded_llm_content_extract_row_id
         """
     )
-    conditions: list[str] = []
+    order_by = sql.SQL(" order by ss.created_at desc ")
+
+    conditions: list[sql.SQL] = []
     args: list[str | int] = []
 
     if quiz_id:
-        conditions.append("q.public_id = %s")
+        conditions.append(sql.SQL("q.public_id = %s"))
         args.append(quiz_id)
 
     if solution_id:
-        conditions.append("ss.public_id = %s")
+        conditions.append(sql.SQL("ss.public_id = %s"))
         args.append(solution_id)
+
+    if conditions:
+        query += sql.SQL(" where ") + sql.SQL(" and ").join(conditions)
+    query += order_by
 
     async with data_context.get_model_cursor(StudentSolution) as cur:
         await cur.execute(query, args)
@@ -253,7 +250,7 @@ async def update_llm_contents_for_solution(
         await cur.execute(
             """
             update student_solution set
-                graded_llm_content_extract_row_id
+                graded_llm_content_extract_row_id = %s
             where
                 public_id = %s
             """,

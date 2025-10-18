@@ -41,8 +41,11 @@ def background_job_decorator(identifier_fn: IdentifierFn):
             except UniqueViolation:
                 in_progress = await job_db.get_job(data_context, identifier)
                 assert in_progress is not None
+
+                logger.info("Job {} already {}", identifier, in_progress)
                 return in_progress
 
+            logger.info("Starting job: {}", identifier)
             background_tasks.add_task(
                 _run_and_complete, data_context, job_id, worker, *args, **kwargs
             )
