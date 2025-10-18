@@ -5,6 +5,7 @@ import tempfile
 from asyncio.log import logger
 from pathlib import Path
 
+import pikepdf
 from google.cloud.storage import Bucket
 from openai import OpenAI
 from pdf2image import convert_from_path
@@ -40,12 +41,18 @@ async def grade_quiz(
     with tempfile.TemporaryDirectory() as temp_dir:
         file_path_obj = Path(solution.solution_path)
         extension = file_path_obj.suffix
+        assert extension == ".pdf"
+
         storage_file = tempfile.NamedTemporaryFile(suffix=extension, dir=temp_dir, delete=False)
         blob = bucket.blob(solution.solution_path)
         await asyncio.to_thread(blob.download_to_filename, storage_file.name)
-        images = pdf_to_images(storage_file.name, temp_dir)
 
-        response = openai_client.responses.create(
+        compressed_pdf = tempfile.NamedTemporaryFile(suffix=extension, dir=temp_dir, delete=False)
+        await asyncio.to_thread(compress_pdf, storage_file.name, compressed_pdf.name)
+        images = await asyncio.to_thread(pdf_to_images, compressed_pdf.name, temp_dir, dpi=150)
+
+        response = await asyncio.to_thread(
+            openai_client.responses.create,
             model="gpt-5-mini",
             input=[
                 {"role": "system", "content": GRADER_SYSTEM_PROMPT},
@@ -135,3 +142,10 @@ def get_model_input_for_img(path):
         "type": "input_image",
         "image_url": f"data:image/jpeg;base64,{base64_image}",
     }
+
+
+def compress_pdf(input_path: str, output_path: str):
+    pdf = pikepdf.open(input_path)
+    pdf.save(output_path)
+    pdf.close()
+    logger.info("Compressed PDF saved to {}", output_path)
