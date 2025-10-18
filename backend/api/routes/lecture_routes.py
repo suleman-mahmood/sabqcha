@@ -65,6 +65,4 @@ async def list_lectures(room_id: str, data_context: DataContext = Depends(get_da
         past_weeks=pas_weeks,
     )
 
-    logger.info("This week: {}", this_week)
-
     return JSONResponse(res.model_dump(mode="json"))

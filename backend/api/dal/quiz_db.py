@@ -196,12 +196,10 @@ async def list_student_solutions(
             ss.public_id as id,
             q.public_id as quiz_id,
             ss.title,
-            ss.solution_path,
-            lce.content as graded_llm_content_extract_content
+            ss.solution_path
         from 
             student_solution ss
             join quiz q on q.row_id = ss.quiz_row_id
-            left join llm_content_extract lce on lce.row_id = ss.graded_llm_content_extract_row_id
         """
     )
     order_by = sql.SQL(" order by ss.created_at desc ")
@@ -256,3 +254,23 @@ async def update_llm_contents_for_solution(
             """,
             (content_row_id, solution_id),
         )
+
+
+async def get_student_graded_solution(data_context: DataContext, solution_id: str) -> str | None:
+    async with data_context.get_cursor() as cur:
+        await cur.execute(
+            """
+            select
+                lce.content as graded_llm_content_extract_content
+            from 
+                student_solution ss
+                join llm_content_extract lce on lce.row_id = ss.graded_llm_content_extract_row_id
+            where
+                ss.public_id = %s
+            """,
+            (solution_id,),
+        )
+        row = await cur.fetchone()
+        if not row:
+            return None
+        return row[0]

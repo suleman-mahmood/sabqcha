@@ -18,7 +18,6 @@ class StudentSolution(BaseModel):
     quiz_id: str
     title: str
     solution_path: str
-    graded_llm_content_extract_content: str | None = None
 
 
 class LLM_CONTENT_EXTRACT_TYPE(StrEnum):

@@ -111,3 +111,11 @@ async def grade_quiz(
         )
 
     return JSONResponse({"status": "scheduled"})
+
+
+@router.get("/solution/{solution_id}")
+async def get_graded_quiz(solution_id: str, data_context: DataContext = Depends(get_data_context)):
+    solution = await quiz_db.get_student_graded_solution(data_context, solution_id)
+    if solution:
+        return JSONResponse({"solution": solution})
+    return JSONResponse({"solution": "Solution not generated yet"})
