@@ -1,5 +1,6 @@
 import os
 import math
+import base64
 import ffmpeg
 import asyncio
 import requests
@@ -15,12 +16,14 @@ from loguru import logger
 
 from api.exceptions import OpenAiApiError, UpliftAiApiError
 from api.models.transcription_models import LlmMcqResponse
-from api.prompts import MCQ_SYSTEM_PROMPT, extract_text_from_file_prompt, generate_mcq_user_prompt
+from api.prompts import MCQ_SYSTEM_PROMPT, EXTRACT_TEXT_FROM_FILE_PROMPT, generate_mcq_user_prompt
 from api.dal import lecture_db, task_db
 from api.dependencies import DataContext
 from api.models.task_models import WeekDay
 from api import utils
 from api.job_utils import background_job_decorator
+from pdf2image import convert_from_path
+from pdf2image.exceptions import PDFInfoNotInstalledError, PDFPageCountError, PDFSyntaxError
 
 MAX_AUDIO_DURATION = 60 * 60  # In seconds, 1 hour
 AUDIO_CHUNK_LEN = 60  # In seconds
@@ -193,38 +196,64 @@ async def _extract_text_from_file(
 
     with tempfile.TemporaryDirectory() as temp_dir:
         file_path_obj = Path(file_path)
-        extension = file_path_obj.suffix or ""
+        extension = (file_path_obj.suffix or "").lower()
         storage_file = tempfile.NamedTemporaryFile(suffix=extension, dir=temp_dir, delete=False)
         blob = bucket.blob(file_path)
         await asyncio.to_thread(blob.download_to_filename, storage_file.name)
 
-        with open(storage_file.name, "rb") as f:
-            data = f.read()
+        if extension == ".pdf":
+            images = pdf_to_images(storage_file.name, temp_dir)
+            if not images:
+                logger.warning("No images generated from PDF {}", file_path)
+                return
 
-    try:
-        text_payload = data.decode("utf-8")
-    except UnicodeDecodeError:
-        text_payload = data.decode("utf-8", errors="ignore")
+            prompt_text = EXTRACT_TEXT_FROM_FILE_PROMPT
 
-    prompt = extract_text_from_file_prompt(text_payload)
+            try:
+                openai_res = await asyncio.to_thread(
+                    openai_client.responses.create,
+                    model="gpt-5-mini",
+                    input=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "input_text", "text": prompt_text},
+                                *[get_model_input_for_img(img) for img in images],
+                            ],
+                        }
+                    ],
+                )
+            except Exception as e:
+                logger.exception("OpenAI OCR call failed for {}: {}", file_path, e)
+                return OpenAiApiError(e)
 
-    try:
-        openai_res = await asyncio.to_thread(
-            openai_client.responses.parse,
-            model="gpt-5-mini",
-            input=[{"role": "user", "content": prompt}],
-        )
-    except Exception as e:
-        logger.exception("OpenAI call failed for {}: {}", file_path, e)
-        return OpenAiApiError(e)
+            return openai_res.output_text or ""
 
-    try:
-        parsed = openai_res.output_parsed
-    except:
-        logger.error("OpenAI returned no parsed output for {}", file_path)
-        return 
+        image_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+        if extension in image_extensions:
+            prompt_text = EXTRACT_TEXT_FROM_FILE_PROMPT
 
-    return str(parsed)
+            try:
+                openai_res = await asyncio.to_thread(
+                    openai_client.responses.create,
+                    model="gpt-5-mini",
+                    input=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "input_text", "text": prompt_text},
+                                get_model_input_for_img(storage_file.name),
+                            ],
+                        }
+                    ],
+                )
+            except Exception as e:
+                logger.exception("OpenAI OCR call failed for {}: {}", file_path, e)
+                return OpenAiApiError(e)
+
+            return openai_res.output_text or ""
+
+    return 
 
 
 async def transcribe_quiz(
@@ -274,3 +303,49 @@ async def transcribe_solution(
         solution_id,
         solution_text,
     )
+
+
+def pdf_to_images(pdf_path: str, output_dir: str, dpi: int = 300) -> list[str]:
+    """
+    Converts all pages of a PDF into images stored in the given directory.
+    """
+    base_name = os.path.basename(pdf_path)
+    file_name = os.path.splitext(base_name)[0]
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    poppler_path = os.getenv("POPPLER_PATH")
+
+    try:
+        pages = convert_from_path(pdf_path, dpi=dpi, poppler_path=poppler_path)
+    except PDFInfoNotInstalledError as exc:
+        logger.error(
+            "Poppler binaries not found for PDF conversion. Install poppler or set POPPLER_PATH env. {}",
+            exc,
+        )
+        raise
+    except (PDFPageCountError, PDFSyntaxError) as exc:
+        logger.error("Failed to read PDF {} for OCR transcription: {}", pdf_path, exc)
+        raise
+    image_paths: list[str] = []
+
+    for idx, page in enumerate(pages, start=1):
+        image_path = os.path.join(output_dir, f"{file_name}_p_{idx}.jpg")
+        page.save(image_path, "JPEG")
+        image_paths.append(image_path)
+        logger.info("Saved {}", image_path)
+
+    return image_paths
+
+
+def encode_image(image_path: str) -> str:
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode("utf-8")
+
+
+def get_model_input_for_img(path: str) -> dict[str, str]:
+    base64_image = encode_image(path)
+    return {
+        "type": "input_image",
+        "image_url": f"data:image/jpeg;base64,{base64_image}",
+    }

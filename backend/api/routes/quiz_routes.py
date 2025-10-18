@@ -1,3 +1,4 @@
+from ..controllers import grade_controller
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -27,6 +28,7 @@ class UploadSolutionBody(BaseModel):
 class UpdateAttachmentsBody(BaseModel):
     answer_sheet_path: str | None = None
     rubric_path: str | None = None
+
 
 @router.post("", status_code=201)
 async def create_quiz(
@@ -155,5 +157,22 @@ async def upload_quiz_attachments(
         openai_client,
         quiz_id,
     )
+
+    return JSONResponse({"status": "scheduled"})
+
+
+@router.post("/{quiz_id}/grade")
+async def grade_quiz(
+    quiz_id: str,
+    bucket: Bucket = Depends(get_bucket),
+    openai_client: OpenAI = Depends(get_openai_client),
+    data_context: DataContext = Depends(get_data_context),
+):
+    assert data_context.user_role == UserRole.TEACHER
+    
+    solution_ids = await quiz_db.list_student_solutions_for_quiz(quiz_id=quiz_id)
+
+    for solution_id in solution_ids:
+        await grade_controller.grade_quiz( data_context, bucket, openai_client, quiz_id = quiz_id, solution_id = solution_id)
 
     return JSONResponse({"status": "scheduled"})

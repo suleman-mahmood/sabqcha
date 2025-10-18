@@ -139,12 +139,9 @@ async def insert_student_solution(
     solution_id = internal_id()
 
     async with data_context.get_cursor() as cur:
-        # get quiz row id
-        # TODO: Move to id_map
-        await cur.execute("select row_id from quiz where public_id = %s", (quiz_id,))
-        row = await cur.fetchone()
-        assert row
-        quiz_row_id = row[0]
+        
+        quiz_row_id = await id_map.get_quiz_row_id(cur, quiz_id)
+        assert quiz_row_id
 
         await cur.execute(
             """
@@ -225,6 +222,7 @@ async def update_quiz_transcription(
 async def list_student_solutions_for_quiz(
     data_context: DataContext, quiz_id: str
 ) -> list[StudentSolutions]:
+    
     async with data_context.get_cursor() as cur:
         await cur.execute(
             """
