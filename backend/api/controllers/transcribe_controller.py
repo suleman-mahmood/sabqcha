@@ -25,7 +25,8 @@ from api.job_utils import background_job_decorator
 from api.models.task_models import WeekDay
 from api.models.transcription_models import LlmMcqResponse
 from api.prompts import (
-    EXTRACT_TEXT_FROM_FILE_PROMPT,
+    EXTRACT_TEXT_FROM_MARKING_SCHEME_PROMPT,
+    EXTRACT_TEXT_FROM_RUBRIC_PROMPT,
     MCQ_SYSTEM_PROMPT,
     generate_mcq_user_prompt,
 )
@@ -193,7 +194,9 @@ async def transcribe_lecture(bucket: Bucket, file_path: str) -> str:
     return " ".join(all_transcripts)
 
 
-async def _extract_text_from_file(bucket: Bucket, file_path: str, openai_client: OpenAI) -> str:
+async def _extract_text_from_file(
+    bucket: Bucket, file_path: str, openai_client: OpenAI, system_prompt: str
+) -> str:
     if not file_path:
         raise FileNotFoundError
 
@@ -220,7 +223,7 @@ async def _extract_text_from_file(bucket: Bucket, file_path: str, openai_client:
                         {
                             "role": "user",
                             "content": [
-                                {"type": "input_text", "text": EXTRACT_TEXT_FROM_FILE_PROMPT},
+                                {"type": "input_text", "text": system_prompt},
                                 *[get_model_input_for_img(img) for img in images],
                             ],
                         }
@@ -241,7 +244,7 @@ async def _extract_text_from_file(bucket: Bucket, file_path: str, openai_client:
                         {
                             "role": "user",
                             "content": [
-                                {"type": "input_text", "text": EXTRACT_TEXT_FROM_FILE_PROMPT},
+                                {"type": "input_text", "text": system_prompt},
                                 get_model_input_for_img(storage_file.name),
                             ],
                         }
@@ -272,8 +275,12 @@ async def transcribe_quiz(
         logger.error("Quiz not found: {}", quiz_id)
         return
 
-    answer_text = await _extract_text_from_file(bucket, quiz.answer_sheet_path, openai_client)
-    rubric_text = await _extract_text_from_file(bucket, quiz.rubric_path, openai_client)
+    answer_text = await _extract_text_from_file(
+        bucket, quiz.answer_sheet_path, openai_client, EXTRACT_TEXT_FROM_MARKING_SCHEME_PROMPT
+    )
+    rubric_text = await _extract_text_from_file(
+        bucket, quiz.rubric_path, openai_client, EXTRACT_TEXT_FROM_RUBRIC_PROMPT
+    )
 
     await quiz_db.update_llm_contents_for_quiz(data_context, quiz_id, rubric_text, answer_text)
 
