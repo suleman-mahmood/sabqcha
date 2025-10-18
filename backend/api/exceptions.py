@@ -4,3 +4,11 @@ class UpliftAiApiError(Exception):
 
 class OpenAiApiError(Exception):
     pass
+
+
+class NoImagesInPdfError(Exception):
+    pass
+
+
+class UnsupportedExtensionError(Exception):
+    pass

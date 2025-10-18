@@ -11,19 +11,22 @@ from google.cloud.storage import Bucket
 from loguru import logger
 from openai import OpenAI
 from pdf2image import convert_from_path
-from pdf2image.exceptions import PDFInfoNotInstalledError, PDFPageCountError, PDFSyntaxError
 
 from api import utils
 from api.dal import lecture_db, quiz_db, task_db
 from api.dependencies import DataContext
-from api.exceptions import OpenAiApiError, UpliftAiApiError
+from api.exceptions import (
+    NoImagesInPdfError,
+    OpenAiApiError,
+    UnsupportedExtensionError,
+    UpliftAiApiError,
+)
 from api.job_utils import background_job_decorator
 from api.models.task_models import WeekDay
 from api.models.transcription_models import LlmMcqResponse
 from api.prompts import (
     EXTRACT_TEXT_FROM_FILE_PROMPT,
     MCQ_SYSTEM_PROMPT,
-    extract_text_from_file_prompt,
     generate_mcq_user_prompt,
 )
 
@@ -192,22 +195,22 @@ async def transcribe_lecture(bucket: Bucket, file_path: str) -> str:
 
 async def _extract_text_from_file(bucket: Bucket, file_path: str, openai_client: OpenAI) -> str:
     if not file_path:
-        return FileNotFoundError
+        raise FileNotFoundError
 
     with tempfile.TemporaryDirectory() as temp_dir:
         file_path_obj = Path(file_path)
-        extension = (file_path_obj.suffix or "").lower()
+        extension = file_path_obj.suffix
         storage_file = tempfile.NamedTemporaryFile(suffix=extension, dir=temp_dir, delete=False)
         blob = bucket.blob(file_path)
         await asyncio.to_thread(blob.download_to_filename, storage_file.name)
+
+        image_extensions = {".jpg", ".jpeg", ".png", ".webp"}
 
         if extension == ".pdf":
             images = pdf_to_images(storage_file.name, temp_dir)
             if not images:
                 logger.warning("No images generated from PDF {}", file_path)
-                return
-
-            prompt_text = EXTRACT_TEXT_FROM_FILE_PROMPT
+                raise NoImagesInPdfError
 
             try:
                 openai_res = await asyncio.to_thread(
@@ -217,22 +220,19 @@ async def _extract_text_from_file(bucket: Bucket, file_path: str, openai_client:
                         {
                             "role": "user",
                             "content": [
-                                {"type": "input_text", "text": prompt_text},
+                                {"type": "input_text", "text": EXTRACT_TEXT_FROM_FILE_PROMPT},
                                 *[get_model_input_for_img(img) for img in images],
                             ],
                         }
                     ],
                 )
-            except Exception as e:
-                logger.exception("OpenAI OCR call failed for {}: {}", file_path, e)
-                return OpenAiApiError(e)
+            except Exception:
+                logger.exception("OpenAI OCR call failed for {}", file_path)
+                raise OpenAiApiError
 
-            return openai_res.output_text or ""
+            return openai_res.output_text
 
-        image_extensions = {".jpg", ".jpeg", ".png", ".webp"}
-        if extension in image_extensions:
-            prompt_text = EXTRACT_TEXT_FROM_FILE_PROMPT
-
+        elif extension in image_extensions:
             try:
                 openai_res = await asyncio.to_thread(
                     openai_client.responses.create,
@@ -241,26 +241,30 @@ async def _extract_text_from_file(bucket: Bucket, file_path: str, openai_client:
                         {
                             "role": "user",
                             "content": [
-                                {"type": "input_text", "text": prompt_text},
+                                {"type": "input_text", "text": EXTRACT_TEXT_FROM_FILE_PROMPT},
                                 get_model_input_for_img(storage_file.name),
                             ],
                         }
                     ],
                 )
-            except Exception as e:
-                logger.exception("OpenAI OCR call failed for {}: {}", file_path, e)
-                return OpenAiApiError(e)
+            except Exception:
+                logger.exception("OpenAI OCR call failed for {", file_path)
+                raise OpenAiApiError
 
-            return openai_res.output_text or ""
+            return openai_res.output_text
+        else:
+            raise UnsupportedExtensionError
 
-    return
 
-
+@background_job_decorator(lambda _, __, kwargs: kwargs.get("quiz_id", ""))
 async def transcribe_quiz(
     data_context: DataContext, bucket: Bucket, openai_client: OpenAI, quiz_id: str
 ):
-    """Download quiz files (answer sheet and rubric) from storage, run multimodal OCR,
-    and update the quiz row with extracted text."""
+    """
+    1. Download quiz files (answer sheet and rubric) from storage
+    2. Extract content from them using llm
+    3. Save it
+    """
 
     # Fetch current quiz record
     quiz = await quiz_db.get_quiz(data_context, quiz_id)
@@ -268,41 +272,10 @@ async def transcribe_quiz(
         logger.error("Quiz not found: {}", quiz_id)
         return
 
-    answer_field = quiz.answer_sheet_path
-    rubric_field = quiz.rubric_path
+    answer_text = await _extract_text_from_file(bucket, quiz.answer_sheet_path, openai_client)
+    rubric_text = await _extract_text_from_file(bucket, quiz.rubric_path, openai_client)
 
-    answer_text = ""
-    rubric_text = ""
-    if answer_field and "/" in answer_field:
-        answer_text = await _extract_text_from_file(bucket, answer_field, openai_client)
-
-    if rubric_field and "/" in rubric_field:
-        rubric_text = await _extract_text_from_file(bucket, rubric_field, openai_client)
-
-    await quiz_db.update_quiz_transcription(data_context, quiz_id, answer_text, rubric_text)
-
-
-async def transcribe_solution(
-    data_context: DataContext,
-    bucket: Bucket,
-    openai_client: OpenAI,
-    solution_id: str,
-):
-    solution = await quiz_db.get_student_solution(data_context, solution_id)
-    if not solution:
-        logger.error("Student solution not found: {}", solution_id)
-        return FileNotFoundError
-
-    if not solution.solution_path:
-        logger.error("Student solution {} is missing a storage path", solution_id)
-        return
-
-    solution_text = await _extract_text_from_file(bucket, solution.solution_path, openai_client)
-    await quiz_db.update_student_solution_transcription(
-        data_context,
-        solution_id,
-        solution_text,
-    )
+    await quiz_db.update_llm_contents_for_quiz(data_context, quiz_id, rubric_text, answer_text)
 
 
 def pdf_to_images(pdf_path: str, output_dir: str, dpi: int = 300) -> list[str]:
@@ -312,28 +285,14 @@ def pdf_to_images(pdf_path: str, output_dir: str, dpi: int = 300) -> list[str]:
     base_name = os.path.basename(pdf_path)
     file_name = os.path.splitext(base_name)[0]
 
-    os.makedirs(output_dir, exist_ok=True)
-
-    poppler_path = os.getenv("POPPLER_PATH")
-
-    try:
-        pages = convert_from_path(pdf_path, dpi=dpi, poppler_path=poppler_path)
-    except PDFInfoNotInstalledError as exc:
-        logger.error(
-            "Poppler binaries not found for PDF conversion. Install poppler or set POPPLER_PATH env. {}",
-            exc,
-        )
-        raise
-    except (PDFPageCountError, PDFSyntaxError) as exc:
-        logger.error("Failed to read PDF {} for OCR transcription: {}", pdf_path, exc)
-        raise
+    pages = convert_from_path(pdf_path, dpi=dpi)
     image_paths: list[str] = []
 
     for idx, page in enumerate(pages, start=1):
         image_path = os.path.join(output_dir, f"{file_name}_p_{idx}.jpg")
         page.save(image_path, "JPEG")
         image_paths.append(image_path)
-        logger.info("Saved {}", image_path)
+        logger.info("Saved pdf -> image: {}", image_path)
 
     return image_paths
 

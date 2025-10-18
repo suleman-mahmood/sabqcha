@@ -1,4 +1,4 @@
-\restrict ajxqBLetZAMp9hVoXw7ihIKeZGydQkvs9aF3ekyiNPIMfmTE6UrQx0PLajcd2ZX
+\restrict 9heJRQsrP175ufK60xqWq3FS8erAedTYCidSNczDsR4p7QpJ61JTpQr70zJIUx3
 
 -- Dumped from database version 16.4 (Debian 16.4-1.pgdg120+1)
 -- Dumped by pg_dump version 17.6
@@ -14,6 +14,17 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
+
+--
+-- Name: llm_content_extract_type; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.llm_content_extract_type AS ENUM (
+    'RUBRIC',
+    'MARKING_SCHEME',
+    'GRADED_STUDENT_SOLUTION'
+);
+
 
 --
 -- Name: week_day; Type: TYPE; Schema: public; Owner: -
@@ -140,6 +151,33 @@ ALTER TABLE public.lecture ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY 
 
 
 --
+-- Name: llm_content_extract; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.llm_content_extract (
+    row_id bigint NOT NULL,
+    public_id text NOT NULL,
+    content text NOT NULL,
+    content_type public.llm_content_extract_type NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: llm_content_extract_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.llm_content_extract ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.llm_content_extract_row_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: mistake_analysis; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -174,16 +212,13 @@ ALTER TABLE public.mistake_analysis ALTER COLUMN row_id ADD GENERATED ALWAYS AS 
 CREATE TABLE public.quiz (
     row_id bigint NOT NULL,
     public_id text NOT NULL,
-    room_id bigint NOT NULL,
+    room_row_id bigint NOT NULL,
     title text NOT NULL,
-    answer_sheet_content text NOT NULL,
-    rubric_content text NOT NULL,
     answer_sheet_path text NOT NULL,
     rubric_path text NOT NULL,
-    created_by text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_by text,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    ms_llm_content_extract_row_id bigint,
+    rubric_llm_content_extract_row_id bigint
 );
 
 
@@ -329,26 +364,26 @@ ALTER TABLE public.student ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY 
 
 
 --
--- Name: student_solutions; Type: TABLE; Schema: public; Owner: -
+-- Name: student_solution; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.student_solutions (
+CREATE TABLE public.student_solution (
     row_id bigint NOT NULL,
     public_id text NOT NULL,
     quiz_row_id bigint NOT NULL,
     title text NOT NULL,
     solution_path text NOT NULL,
-    solution_content text NOT NULL DEFAULT '',
+    graded_llm_content_extract_row_id bigint,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
 --
--- Name: student_solutions_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: student_solution_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-ALTER TABLE public.student_solutions ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.student_solutions_row_id_seq
+ALTER TABLE public.student_solution ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.student_solution_row_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -541,6 +576,22 @@ ALTER TABLE ONLY public.lecture
 
 
 --
+-- Name: llm_content_extract llm_content_extract_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.llm_content_extract
+    ADD CONSTRAINT llm_content_extract_pkey PRIMARY KEY (row_id);
+
+
+--
+-- Name: llm_content_extract llm_content_extract_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.llm_content_extract
+    ADD CONSTRAINT llm_content_extract_public_id_key UNIQUE (public_id);
+
+
+--
 -- Name: mistake_analysis mistake_analysis_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -645,19 +696,19 @@ ALTER TABLE ONLY public.student_room
 
 
 --
--- Name: student_solutions student_solutions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: student_solution student_solution_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.student_solutions
-    ADD CONSTRAINT student_solutions_pkey PRIMARY KEY (row_id);
+ALTER TABLE ONLY public.student_solution
+    ADD CONSTRAINT student_solution_pkey PRIMARY KEY (row_id);
 
 
 --
--- Name: student_solutions student_solutions_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: student_solution student_solution_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.student_solutions
-    ADD CONSTRAINT student_solutions_public_id_key UNIQUE (public_id);
+ALTER TABLE ONLY public.student_solution
+    ADD CONSTRAINT student_solution_public_id_key UNIQUE (public_id);
 
 
 --
@@ -757,11 +808,27 @@ ALTER TABLE ONLY public.mistake_analysis
 
 
 --
--- Name: quiz quiz_room_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: quiz quiz_ms_llm_content_extract_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.quiz
-    ADD CONSTRAINT quiz_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.room(row_id) ON DELETE CASCADE;
+    ADD CONSTRAINT quiz_ms_llm_content_extract_row_id_fkey FOREIGN KEY (ms_llm_content_extract_row_id) REFERENCES public.llm_content_extract(row_id);
+
+
+--
+-- Name: quiz quiz_room_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quiz
+    ADD CONSTRAINT quiz_room_row_id_fkey FOREIGN KEY (room_row_id) REFERENCES public.room(row_id);
+
+
+--
+-- Name: quiz quiz_rubric_llm_content_extract_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quiz
+    ADD CONSTRAINT quiz_rubric_llm_content_extract_row_id_fkey FOREIGN KEY (rubric_llm_content_extract_row_id) REFERENCES public.llm_content_extract(row_id);
 
 
 --
@@ -805,11 +872,19 @@ ALTER TABLE ONLY public.student
 
 
 --
--- Name: student_solutions student_solutions_quiz_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: student_solution student_solution_graded_llm_content_extract_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.student_solutions
-    ADD CONSTRAINT student_solutions_quiz_row_id_fkey FOREIGN KEY (quiz_row_id) REFERENCES public.quiz(row_id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.student_solution
+    ADD CONSTRAINT student_solution_graded_llm_content_extract_row_id_fkey FOREIGN KEY (graded_llm_content_extract_row_id) REFERENCES public.llm_content_extract(row_id);
+
+
+--
+-- Name: student_solution student_solution_quiz_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.student_solution
+    ADD CONSTRAINT student_solution_quiz_row_id_fkey FOREIGN KEY (quiz_row_id) REFERENCES public.quiz(row_id);
 
 
 --
@@ -856,7 +931,7 @@ ALTER TABLE ONLY public.teacher
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ajxqBLetZAMp9hVoXw7ihIKeZGydQkvs9aF3ekyiNPIMfmTE6UrQx0PLajcd2ZX
+\unrestrict 9heJRQsrP175ufK60xqWq3FS8erAedTYCidSNczDsR4p7QpJ61JTpQr70zJIUx3
 
 
 --
@@ -875,4 +950,6 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20251015200630'),
     ('20251016040045'),
     ('20251016055812'),
-    ('20251016061007');
+    ('20251016061007'),
+    ('20251018050651'),
+    ('20251018061509');

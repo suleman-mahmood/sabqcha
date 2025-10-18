@@ -16,7 +16,7 @@ from ..prompts import GRADER_SYSTEM_PROMPT
 
 
 @background_job_decorator(
-    lambda _, args, kwargs: f"{kwargs.get('quiz_id')}-{kwargs.get('solution_id')}"
+    lambda _, __, kwargs: f"{kwargs.get('quiz_id')}-{kwargs.get('solution_id')}"
 )
 async def grade_quiz(
     data_context: DataContext, bucket: Bucket, openai_client: OpenAI, quiz_id: str, solution_id: str
@@ -31,14 +31,15 @@ async def grade_quiz(
     logger.info("Grading quiz {} for solution {}", quiz_id, solution_id)
 
     quiz = await quiz_db.get_quiz(data_context, quiz_id=quiz_id)
-    assert quiz.rubric_content and quiz.answer_sheet_content
+    assert quiz
+    assert quiz.ms_llm_content_extract_content and quiz.rubric_llm_content_extract_content
 
     solution = await quiz_db.get_student_solution(data_context, solution_id=solution_id)
-    assert solution.solution_path
+    assert solution
 
     with tempfile.TemporaryDirectory() as temp_dir:
         file_path_obj = Path(solution.solution_path)
-        extension = file_path_obj.suffix or ""
+        extension = file_path_obj.suffix
         storage_file = tempfile.NamedTemporaryFile(suffix=extension, dir=temp_dir, delete=False)
         blob = bucket.blob(solution.solution_path)
         await asyncio.to_thread(blob.download_to_filename, storage_file.name)
@@ -53,11 +54,11 @@ async def grade_quiz(
                     "content": [
                         {
                             "type": "input_text",
-                            "text": f"Rubric for grading guidelines: {quiz.rubric_content}",
+                            "text": f"Rubric for grading guidelines: {quiz.rubric_llm_content_extract_content}",
                         },
                         {
                             "type": "input_text",
-                            "text": f"Correct solution for reference: {quiz.answer_sheet_content}",
+                            "text": f"Correct solution for reference: {quiz.ms_llm_content_extract_content}",
                         },
                         {
                             "type": "input_text",
@@ -75,7 +76,7 @@ async def grade_quiz(
             ],
         )
 
-    quiz_db.update_student_solution_transcription(response.output_text)
+    await quiz_db.update_llm_contents_for_solution(data_context, solution_id, response.output_text)
 
     logger.info(
         "LLM responded with solution: {} ... {}",
