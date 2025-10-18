@@ -22,3 +22,33 @@ Run the migrations
 
 ```dbmate up
 ```
+
+LSP setup for backend
+```
+- pyrightls (id: 1)
+  - Version: ? (no serverInfo.version response)
+  - Root directory: ~/Projects/sabqcha/backend
+  - Command: { "pyright-langserver", "--stdio" }
+  - Settings: {
+      python = {
+        analysis = {
+          autoSearchPaths = true,
+          diagnosticMode = "openFilesOnly",
+          useLibraryCodeForTypes = true
+        },
+        pythonPath = "/Users/sulemanmahmood/Projects/sabqcha/backend/.venv/bin/python"
+      }
+    }
+  - Attached buffers: 1, 35, 53, 5
+- ruffls (id: 2)
+  - Version: 0.13.3
+  - Root directory: ~/Projects/sabqcha/backend
+  - Command: { "uv", "run", "ruff", "server" }
+  - Settings: {
+      ruff = {
+        organizeImports = true
+      }
+    }
+  - Attached buffers: 1, 35, 53, 5
+
+```
