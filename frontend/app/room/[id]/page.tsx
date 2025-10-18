@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/components/AuthProvider";
 import { TeacherTasksSection } from "./components/TeacherTasksSection";
-import { QuizSection } from "./components/QuizSection";
 import type { Week } from "./types";
 
 export default function Page() {
@@ -311,7 +310,7 @@ export default function Page() {
                 )}
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                    <div className="lg:col-span-2">
+                    <div className="lg:col-span-3">
                         <TeacherTasksSection
                             weeks={weeks}
                             generating={generating}
@@ -319,14 +318,7 @@ export default function Page() {
                             onTaskSetClick={handleTaskSetClick}
                         />
                     </div>
-                    <div>
-                        <QuizSection
-                            roomId={roomId}
-                            weeks={weeks}
-                            onInfoMessage={(message) => showInfo(message || null)}
-                            onErrorMessage={(message) => showError(message || null)}
-                        />
-                    </div>
+
                 </div>
             </div>
         </div>

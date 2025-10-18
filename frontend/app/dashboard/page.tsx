@@ -208,7 +208,7 @@ export default function Dashboard() {
         // Generate a unique filename using timestamp + random string, preserve extension when possible
         const fileExtMatch = file.name.match(/\.[a-z0-9]+$/i);
         const ext = fileExtMatch ? fileExtMatch[0] : (file.type ? `.${file.type.split('/').pop()}` : '.bin');
-        const uniqueFileName = `${Date.now()}-${Math.random().toString(36).slice(2,9)}${ext}`;
+        const uniqueFileName = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}${ext}`;
         const storageRef = ref(storage, `lecture/${uniqueFileName}`);
         const uploadTask = uploadBytesResumable(storageRef, file);
 
@@ -673,8 +673,7 @@ export default function Dashboard() {
                                     {rooms.map((room) => (
                                         <Card
                                             key={room.id}
-                                            className="transition-all hover:shadow-lg cursor-pointer"
-                                            onClick={() => user && user.userRole === "TEACHER" ? router.push(`/room/${room.id}`) : null}
+                                            className="transition-all hover:shadow-lg"
                                         >
                                             <CardContent className="p-4 text-center">
                                                 <p className="font-semibold text-foreground truncate">
@@ -708,13 +707,26 @@ export default function Dashboard() {
                                                     )
                                                 )}
 
-                                                <Button
-                                                    className="mt-2 w-full"
-                                                    variant="outline"
-                                                    onClick={(e) => { e.stopPropagation(); router.push(`/leaderboard/${room.id}`); }}
-                                                >
-                                                    Leaderboards
-                                                </Button>
+
+                                                {user && user.userRole === "TEACHER" && (
+                                                    <Button
+                                                        className="mt-2 w-full"
+                                                        variant="outline"
+                                                        onClick={(e) => { e.stopPropagation(); router.push(`/room/${room.id}`); }}
+                                                    >
+                                                        Task sets
+                                                    </Button>
+                                                )}
+
+                                                {user && user.userRole === "TEACHER" && (
+                                                    <Button
+                                                        className="mt-2 w-full"
+                                                        variant="outline"
+                                                        onClick={(e) => { e.stopPropagation(); router.push(`/room/${room.id}/quiz`); }}
+                                                    >
+                                                        Quizes
+                                                    </Button>
+                                                )}
 
                                                 {user && user.userRole !== "TEACHER" && (
                                                     <Button
@@ -725,6 +737,14 @@ export default function Dashboard() {
                                                         View attempts
                                                     </Button>
                                                 )}
+
+                                                <Button
+                                                    className="mt-2 w-full"
+                                                    variant="outline"
+                                                    onClick={(e) => { e.stopPropagation(); router.push(`/leaderboard/${room.id}`); }}
+                                                >
+                                                    Leaderboards
+                                                </Button>
                                             </CardContent>
                                         </Card>
                                     ))}
