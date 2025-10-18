@@ -10,6 +10,7 @@ COPY . .
 # Install system dependencies (ffmpeg + required tools)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
+    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Install FastAPI and Uvicorn
