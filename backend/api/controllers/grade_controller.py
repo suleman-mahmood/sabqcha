@@ -1,18 +1,23 @@
 import asyncio
-from asyncio.log import logger
-from openai import OpenAI
 import base64
 import os
+import tempfile
+from asyncio.log import logger
 from pathlib import Path
+
+from google.cloud.storage import Bucket
+from openai import OpenAI
+from pdf2image import convert_from_path
+
+from ..dal import quiz_db
 from ..dependencies import DataContext
 from ..job_utils import background_job_decorator
-from ..dal import quiz_db
 from ..prompts import GRADER_SYSTEM_PROMPT
-from google.cloud.storage import Bucket
-from pdf2image import convert_from_path
-import tempfile
 
-@background_job_decorator(lambda _, args, kwargs: f"{kwargs.get("quiz_id")}-{kwargs.get("solution_id")}")
+
+@background_job_decorator(
+    lambda _, args, kwargs: f"{kwargs.get('quiz_id')}-{kwargs.get('solution_id')}"
+)
 async def grade_quiz(
     data_context: DataContext, bucket: Bucket, openai_client: OpenAI, quiz_id: str, solution_id: str
 ):
@@ -25,7 +30,7 @@ async def grade_quiz(
     """
     logger.info("Grading quiz {} for solution {}", quiz_id, solution_id)
 
-    quiz = await quiz_db.get_quiz(data_context, quiz_id= quiz_id)
+    quiz = await quiz_db.get_quiz(data_context, quiz_id=quiz_id)
     assert quiz.rubric_content and quiz.answer_sheet_content
 
     solution = await quiz_db.get_student_solution(data_context, solution_id=solution_id)
@@ -38,7 +43,7 @@ async def grade_quiz(
         blob = bucket.blob(solution.solution_path)
         await asyncio.to_thread(blob.download_to_filename, storage_file.name)
         images = pdf_to_images(storage_file.name, temp_dir)
-        
+
         response = openai_client.responses.create(
             model="gpt-5-mini",
             input=[
@@ -69,7 +74,7 @@ async def grade_quiz(
                 },
             ],
         )
-    
+
     quiz_db.update_student_solution_transcription(response.output_text)
 
     logger.info(
@@ -83,7 +88,6 @@ async def grade_quiz(
             response.usage.input_tokens,
             response.usage.output_tokens,
         )
-
 
 
 def pdf_to_images(pdf_path: str, output_dir: str = "pdf_images", dpi: int = 300):

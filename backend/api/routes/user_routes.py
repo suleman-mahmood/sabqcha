@@ -3,18 +3,15 @@ from fastapi.responses import JSONResponse, Response
 from loguru import logger
 from pydantic import BaseModel, EmailStr
 
+from api import utils
+from api.dal import room_db, session_db, task_db, user_db
 from api.dependencies import (
     DataContext,
     UnAuthDataContext,
     get_data_context,
     get_un_auth_data_context,
 )
-from api.dal import session_db, user_db
-from api import utils
 from api.models.user_models import UserRole
-from api.dal import room_db
-from api.dal import task_db
-
 
 router = APIRouter(prefix="/user")
 

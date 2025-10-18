@@ -6,21 +6,18 @@ from loguru import logger
 from openai import OpenAI
 from pydantic import BaseModel
 
+from api.dal import lecture_db, room_db, task_db
 from api.dependencies import DataContext, get_data_context, get_openai_client
-from api.dal import task_db
-from api.models.user_models import UserRole
-from api.dal import room_db
+from api.exceptions import OpenAiApiError
+from api.job_utils import background_job_decorator
 from api.models.task_models import TaskAttempted, TaskSetRes
-from api.dal import lecture_db
+from api.models.user_models import UserRole
 from api.prompts import (
     MISTAKE_ANALYSIS_SYSTEM_PROMPT,
     ConceptLlmRes,
     MistakeAnalysisLlmRes,
     generate_mistake_user_prompt,
 )
-from api.exceptions import OpenAiApiError
-from api.job_utils import background_job_decorator
-
 
 router = APIRouter(prefix="/task")
 

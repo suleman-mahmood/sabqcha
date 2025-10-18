@@ -1,16 +1,15 @@
 from fastapi import APIRouter, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse
+from google.cloud.storage import Bucket
 from loguru import logger
+from openai import OpenAI
 from pydantic import BaseModel
 
-from api.dependencies import DataContext, get_data_context, get_bucket, get_openai_client
-from api.dal import lecture_db, room_db
-from api.models.user_models import UserRole
-from api.models.lecture_models import LectureWeekRes, ListLecturesRes
 from api.controllers import transcribe_controller
-
-from google.cloud.storage import Bucket
-from openai import OpenAI
+from api.dal import lecture_db, room_db
+from api.dependencies import DataContext, get_bucket, get_data_context, get_openai_client
+from api.models.lecture_models import LectureWeekRes, ListLecturesRes
+from api.models.user_models import UserRole
 
 router = APIRouter(prefix="/lecture")
 

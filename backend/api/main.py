@@ -1,25 +1,25 @@
-from contextlib import asynccontextmanager
-import time
 import os
 import sys
-
-from psycopg import AsyncCursor
+import time
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-
 from loguru import logger
+from psycopg import AsyncCursor
 from psycopg_pool import AsyncConnectionPool
 
-from api.routes import task_routes
-from api.routes import quiz_routes
-from api.routes import leaderboard_routes
-from api.dependencies import get_cursor
 from api import dependencies
 from api.dal import session_db
-from api.routes import user_routes
-from api.routes import lecture_routes, room_routes
-
+from api.dependencies import get_cursor
+from api.routes import (
+    leaderboard_routes,
+    lecture_routes,
+    quiz_routes,
+    room_routes,
+    task_routes,
+    user_routes,
+)
 
 # Setup logger
 logger.remove()

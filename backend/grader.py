@@ -1,15 +1,14 @@
-from io import BytesIO
-import os
 import base64
+import os
 import sys
-
-from openai import OpenAI
-from loguru import logger
-from pdf2image import convert_from_path
-from pydantic import BaseModel
-from PIL import Image, ImageDraw, ImageOps
+from io import BytesIO
 
 from api.prompts import GRADER_SYSTEM_PROMPT
+from loguru import logger
+from openai import OpenAI
+from pdf2image import convert_from_path
+from PIL import Image, ImageDraw, ImageOps
+from pydantic import BaseModel
 
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 

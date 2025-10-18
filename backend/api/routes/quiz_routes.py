@@ -1,15 +1,15 @@
-from ..controllers import grade_controller
-from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 from google.cloud.storage import Bucket
 from openai import OpenAI
+from pydantic import BaseModel
 
-from api.dependencies import DataContext, get_data_context, get_bucket, get_openai_client
-from api.models.user_models import UserRole
-from api.dal import quiz_db
 from api.controllers import transcribe_controller
+from api.dal import quiz_db
+from api.dependencies import DataContext, get_bucket, get_data_context, get_openai_client
+from api.models.user_models import UserRole
 
+from ..controllers import grade_controller
 
 router = APIRouter(prefix="/quiz")
 
@@ -21,9 +21,11 @@ class CreateQuizBody(BaseModel):
     rubric_path: str | None = None
     lecture_ids: list[str] | None = None
 
+
 class UploadSolutionBody(BaseModel):
     title: str
     solution_path: str
+
 
 class UpdateAttachmentsBody(BaseModel):
     answer_sheet_path: str | None = None
@@ -55,11 +57,13 @@ async def create_quiz(
 
     return JSONResponse({"id": quiz_id})
 
+
 @router.get("/{quiz_id}")
 async def get_quiz(quiz_id: str, data_context: DataContext = Depends(get_data_context)):
     quiz = await quiz_db.get_quiz(data_context, quiz_id)
     assert quiz
     return JSONResponse(quiz.model_dump(mode="json"))
+
 
 @router.post("/{quiz_id}/transcribe")
 async def transcribe_quiz(
@@ -70,15 +74,19 @@ async def transcribe_quiz(
     data_context: DataContext = Depends(get_data_context),
 ):
     assert data_context.user_role == UserRole.TEACHER
-    background_tasks.add_task(transcribe_controller.transcribe_quiz, data_context, bucket, openai_client, quiz_id)
+    background_tasks.add_task(
+        transcribe_controller.transcribe_quiz, data_context, bucket, openai_client, quiz_id
+    )
     return JSONResponse({"status": "scheduled"})
+
 
 @router.get("/room/{room_id}")
 async def list_quizzes(room_id: str, data_context: DataContext = Depends(get_data_context)):
     assert data_context.user_role == UserRole.TEACHER
-    
+
     quizzes = await quiz_db.list_quizzes_for_room(data_context, room_id)
     return JSONResponse([q.model_dump(mode="json") for q in quizzes])
+
 
 @router.post("/{quiz_id}/solutions", status_code=201)
 async def upload_solution(
@@ -169,10 +177,13 @@ async def grade_quiz(
     data_context: DataContext = Depends(get_data_context),
 ):
     assert data_context.user_role == UserRole.TEACHER
-    
+
     solution_ids = await quiz_db.list_student_solutions_for_quiz(quiz_id=quiz_id)
 
     for solution_id in solution_ids:
-        await grade_controller.grade_quiz( data_context, bucket, openai_client, quiz_id = quiz_id, solution_id = solution_id)
+        await grade_controller.grade_quiz(
+            data_context, bucket, openai_client, quiz_id=quiz_id, solution_id=solution_id
+        )
 
     return JSONResponse({"status": "scheduled"})
+

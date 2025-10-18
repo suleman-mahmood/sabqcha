@@ -2,8 +2,6 @@ import json
 
 from api.dal import id_map
 from api.dependencies import DataContext
-from api.models.transcription_models import LlmMcq
-from api.utils import internal_id
 from api.models.task_models import (
     Task,
     TaskAttempted,
@@ -12,6 +10,8 @@ from api.models.task_models import (
     TaskSetRes,
     WeekDay,
 )
+from api.models.transcription_models import LlmMcq
+from api.utils import internal_id
 
 
 async def insert_task_set(

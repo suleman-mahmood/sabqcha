@@ -1,10 +1,11 @@
 from typing import Any, Awaitable, Callable, Dict, Tuple
+
 from fastapi import BackgroundTasks
 from loguru import logger
 from psycopg.errors import UniqueViolation
 
-from api.dependencies import DataContext
 from api.dal import job_db
+from api.dependencies import DataContext
 
 AsyncFunc = Callable[..., Awaitable[Any]]
 IdentifierFn = Callable[[DataContext, Tuple[Any, ...], Dict[str, Any]], str]

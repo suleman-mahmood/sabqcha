@@ -2,8 +2,8 @@ from typing import List
 
 from api.dal import id_map
 from api.dependencies import DataContext
-from api.utils import internal_id
 from api.models.quiz_model import Quiz, StudentSolutions
+from api.utils import internal_id
 
 
 async def insert_quiz(

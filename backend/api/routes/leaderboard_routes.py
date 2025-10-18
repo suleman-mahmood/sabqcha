@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-from api.dependencies import DataContext, get_data_context
 from api.dal import leaderboard_db
-
+from api.dependencies import DataContext, get_data_context
 
 router = APIRouter(prefix="/leaderboard")
 

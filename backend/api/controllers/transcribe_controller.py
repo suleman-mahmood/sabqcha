@@ -1,29 +1,31 @@
-import os
-import math
-import base64
-import ffmpeg
 import asyncio
-import requests
+import base64
+import math
+import os
 import tempfile
-
 from pathlib import Path
 
+import ffmpeg
+import requests
 from google.cloud.storage import Bucket
-from openai import OpenAI
-from api.dal import quiz_db
-
 from loguru import logger
-
-from api.exceptions import OpenAiApiError, UpliftAiApiError
-from api.models.transcription_models import LlmMcqResponse
-from api.prompts import MCQ_SYSTEM_PROMPT, EXTRACT_TEXT_FROM_FILE_PROMPT, generate_mcq_user_prompt
-from api.dal import lecture_db, task_db
-from api.dependencies import DataContext
-from api.models.task_models import WeekDay
-from api import utils
-from api.job_utils import background_job_decorator
+from openai import OpenAI
 from pdf2image import convert_from_path
 from pdf2image.exceptions import PDFInfoNotInstalledError, PDFPageCountError, PDFSyntaxError
+
+from api import utils
+from api.dal import lecture_db, quiz_db, task_db
+from api.dependencies import DataContext
+from api.exceptions import OpenAiApiError, UpliftAiApiError
+from api.job_utils import background_job_decorator
+from api.models.task_models import WeekDay
+from api.models.transcription_models import LlmMcqResponse
+from api.prompts import (
+    EXTRACT_TEXT_FROM_FILE_PROMPT,
+    MCQ_SYSTEM_PROMPT,
+    extract_text_from_file_prompt,
+    generate_mcq_user_prompt,
+)
 
 MAX_AUDIO_DURATION = 60 * 60  # In seconds, 1 hour
 AUDIO_CHUNK_LEN = 60  # In seconds
@@ -188,9 +190,7 @@ async def transcribe_lecture(bucket: Bucket, file_path: str) -> str:
     return " ".join(all_transcripts)
 
 
-async def _extract_text_from_file(
-    bucket: Bucket, file_path: str, openai_client: OpenAI
-) -> str:
+async def _extract_text_from_file(bucket: Bucket, file_path: str, openai_client: OpenAI) -> str:
     if not file_path:
         return FileNotFoundError
 
@@ -253,7 +253,7 @@ async def _extract_text_from_file(
 
             return openai_res.output_text or ""
 
-    return 
+    return
 
 
 async def transcribe_quiz(

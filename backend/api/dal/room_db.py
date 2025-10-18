@@ -1,8 +1,8 @@
 from api.dal import id_map
 from api.dependencies import DataContext
-from api.utils import internal_id, invite_code
 from api.models.room_models import Room
 from api.models.user_models import UserRole
+from api.utils import internal_id, invite_code
 
 
 async def insert_room(data_context: DataContext, display_name: str, teacher_id: str) -> str:

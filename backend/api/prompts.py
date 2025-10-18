@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 
-
 MCQ_SYSTEM_PROMPT = """
 System Prompt: Task Set Generator for Weekly Lectures
 

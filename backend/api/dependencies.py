@@ -1,15 +1,14 @@
-from contextlib import asynccontextmanager
 import os
-from fastapi import Request
-import firebase_admin
-from loguru import logger
+from contextlib import asynccontextmanager
 
-from psycopg_pool import AsyncConnectionPool
-from firebase_admin import credentials, storage, firestore
+import firebase_admin
+from fastapi import Request
+from firebase_admin import credentials, firestore, storage
+from loguru import logger
 from openai import OpenAI
+from psycopg_pool import AsyncConnectionPool
 
 from api.models.user_models import AuthData, UserRole
-
 
 # Setup PG
 pool: AsyncConnectionPool | None = None

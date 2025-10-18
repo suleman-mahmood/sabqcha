@@ -1,6 +1,6 @@
+from api.dal import id_map
 from api.dependencies import DataContext
 from api.models.user_models import StudentUser
-from api.dal import id_map
 
 
 async def list_students_with_scores(data_context: DataContext, room_id: str) -> list[StudentUser]:
