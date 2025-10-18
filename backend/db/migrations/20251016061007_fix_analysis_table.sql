@@ -15,4 +15,4 @@ create table mistake_analysis (
 
 -- migrate:down
 
-drop table task_set_analysis;
+drop table mistake_analysis;
