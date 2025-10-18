@@ -1,8 +1,9 @@
 from psycopg import AsyncCursor
-from api.utils import internal_id
+
 from api.dal import id_map
-from api.models.user_models import AuthData, UserRole
 from api.dependencies import DataContext, UnAuthDataContext
+from api.models.user_models import AuthData, UserRole
+from api.utils import internal_id
 
 
 async def insert_session(data_context: DataContext | UnAuthDataContext, user_id: str) -> str:

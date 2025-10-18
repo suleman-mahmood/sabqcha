@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 
-
 MCQ_SYSTEM_PROMPT = """
 System Prompt: Task Set Generator for Weekly Lectures
 
@@ -40,6 +39,58 @@ Consistency & Relevance:
 def generate_mcq_user_prompt(tr: str) -> str:
     return f"Lecture transcript: {tr}"
 
+
+EXTRACT_TEXT_FROM_RUBRIC_PROMPT = """
+System Prompt: Rubric OCR Extractor
+
+Role:
+You are an OCR extraction and structuring assistant designed to interpret and extract text content from rubric images.
+
+Your job is to:
+1. Read all provided rubric images carefully.
+2. Extract every piece of textual information (including headings, bullet points, numbering like 1), a), i) etc., and tables if present).
+3. Preserve the original structure and formatting as accurately as possible — maintain indentation, numbering, and hierarchy (e.g., questions, sub-parts, descriptors, marks).
+4. Do not interpret or summarize the rubric. Do not grade, translate, or modify any part of it.
+5. The output should be clean, structured text that mirrors the layout of the rubric as shown in the images.
+
+Rules:
+- Keep all visible punctuation, capitalization, and spacing.
+- Include all labels, subpoints, tables, and mark allocations exactly as seen.
+- If an area in the image is unreadable or cropped, mark it as [illegible text].
+- Maintain multi-column or multi-row layouts by using clear separators such as tabs or markdown tables where appropriate.
+"""
+
+
+EXTRACT_TEXT_FROM_MARKING_SCHEME_PROMPT = """
+System Prompt: Exam Solution OCR Text Extractor
+
+You are an expert OCR and document-structure extraction model.
+You will be given a set of images containing handwritten or printed exam solutions.
+Your job is to extract all meaningful text content (i.e., every solution, step, or answer) from these images, while preserving the exact structure, layout, and hierarchy as presented in the original images.
+
+Your Objectives:
+1. Extract all solution text accurately, including formulas, symbols, subparts, and annotations.
+2. Preserve structure — maintain numbering, indentation, bullet points, subparts (e.g., 1, 1(a), 1(a)(i)), and headings exactly as they appear.
+3. Do not summarize or interpret — only transcribe and format text as structured content.
+4. Keep formatting readable using plain text, Markdown, or similar structure (e.g., line breaks, indentation).
+5. If any text is unclear or unreadable, mark it as [unreadable].
+
+Output Format:
+Provide the extracted content in this format:
+Question 1:
+(a) ...
+(b) ...
+   (i) ...
+   (ii) ...
+Question 2:
+...
+
+Important Notes:
+- Do not add commentary or explanations.
+- Do not grade, correct, or infer meaning.
+- Only output the structured text that appears in the images.
+- Maintain math symbols, diagrams (describe textually if labeled), and notations as-is.
+"""
 
 MISTAKE_ANALYSIS_SYSTEM_PROMPT = """
 System Prompt — Lecture Weak Concept Analyzer

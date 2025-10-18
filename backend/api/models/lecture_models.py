@@ -1,8 +1,9 @@
 from datetime import datetime
+
 from pydantic import BaseModel
 
-from api.models.task_models import WeekDay
 from api.models.room_models import Room
+from api.models.task_models import WeekDay
 
 
 class Lecture(BaseModel):

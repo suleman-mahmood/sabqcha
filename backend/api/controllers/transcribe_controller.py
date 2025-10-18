@@ -1,25 +1,35 @@
-import os
-import math
-import ffmpeg
 import asyncio
-import requests
+import base64
+import math
+import os
 import tempfile
-
 from pathlib import Path
 
+import ffmpeg
+import requests
 from google.cloud.storage import Bucket
-from openai import OpenAI
-
 from loguru import logger
+from openai import OpenAI
+from pdf2image import convert_from_path
 
-from api.exceptions import OpenAiApiError, UpliftAiApiError
-from api.models.transcription_models import LlmMcqResponse
-from api.prompts import MCQ_SYSTEM_PROMPT, generate_mcq_user_prompt
-from api.dal import lecture_db, task_db
-from api.dependencies import DataContext
-from api.models.task_models import WeekDay
 from api import utils
+from api.dal import lecture_db, quiz_db, task_db
+from api.dependencies import DataContext
+from api.exceptions import (
+    NoImagesInPdfError,
+    OpenAiApiError,
+    UnsupportedExtensionError,
+    UpliftAiApiError,
+)
 from api.job_utils import background_job_decorator
+from api.models.task_models import WeekDay
+from api.models.transcription_models import LlmMcqResponse
+from api.prompts import (
+    EXTRACT_TEXT_FROM_MARKING_SCHEME_PROMPT,
+    EXTRACT_TEXT_FROM_RUBRIC_PROMPT,
+    MCQ_SYSTEM_PROMPT,
+    generate_mcq_user_prompt,
+)
 
 MAX_AUDIO_DURATION = 60 * 60  # In seconds, 1 hour
 AUDIO_CHUNK_LEN = 60  # In seconds
@@ -182,3 +192,126 @@ async def transcribe_lecture(bucket: Bucket, file_path: str) -> str:
         )
 
     return " ".join(all_transcripts)
+
+
+async def _extract_text_from_file(
+    bucket: Bucket, file_path: str, openai_client: OpenAI, system_prompt: str
+) -> str:
+    if not file_path:
+        raise FileNotFoundError
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        file_path_obj = Path(file_path)
+        extension = file_path_obj.suffix
+        storage_file = tempfile.NamedTemporaryFile(suffix=extension, dir=temp_dir, delete=False)
+        blob = bucket.blob(file_path)
+        await asyncio.to_thread(blob.download_to_filename, storage_file.name)
+
+        image_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+
+        if extension == ".pdf":
+            images = pdf_to_images(storage_file.name, temp_dir)
+            if not images:
+                logger.warning("No images generated from PDF {}", file_path)
+                raise NoImagesInPdfError
+
+            try:
+                openai_res = await asyncio.to_thread(
+                    openai_client.responses.create,
+                    model="gpt-5-mini",
+                    input=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "input_text", "text": system_prompt},
+                                *[get_model_input_for_img(img) for img in images],
+                            ],
+                        }
+                    ],
+                )
+            except Exception:
+                logger.exception("OpenAI OCR call failed for {}", file_path)
+                raise OpenAiApiError
+
+            return openai_res.output_text
+
+        elif extension in image_extensions:
+            try:
+                openai_res = await asyncio.to_thread(
+                    openai_client.responses.create,
+                    model="gpt-5-mini",
+                    input=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "input_text", "text": system_prompt},
+                                get_model_input_for_img(storage_file.name),
+                            ],
+                        }
+                    ],
+                )
+            except Exception:
+                logger.exception("OpenAI OCR call failed for {", file_path)
+                raise OpenAiApiError
+
+            return openai_res.output_text
+        else:
+            raise UnsupportedExtensionError
+
+
+@background_job_decorator(lambda _, __, kwargs: kwargs.get("quiz_id", ""))
+async def transcribe_quiz(
+    data_context: DataContext, bucket: Bucket, openai_client: OpenAI, quiz_id: str
+):
+    """
+    1. Download quiz files (answer sheet and rubric) from storage
+    2. Extract content from them using llm
+    3. Save it
+    """
+
+    # Fetch current quiz record
+    quiz = await quiz_db.get_quiz(data_context, quiz_id)
+    if not quiz:
+        logger.error("Quiz not found: {}", quiz_id)
+        return
+
+    answer_text = await _extract_text_from_file(
+        bucket, quiz.answer_sheet_path, openai_client, EXTRACT_TEXT_FROM_MARKING_SCHEME_PROMPT
+    )
+    rubric_text = await _extract_text_from_file(
+        bucket, quiz.rubric_path, openai_client, EXTRACT_TEXT_FROM_RUBRIC_PROMPT
+    )
+
+    await quiz_db.update_llm_contents_for_quiz(data_context, quiz_id, rubric_text, answer_text)
+
+
+def pdf_to_images(pdf_path: str, output_dir: str, dpi: int = 300) -> list[str]:
+    """
+    Converts all pages of a PDF into images stored in the given directory.
+    """
+    base_name = os.path.basename(pdf_path)
+    file_name = os.path.splitext(base_name)[0]
+
+    pages = convert_from_path(pdf_path, dpi=dpi)
+    image_paths: list[str] = []
+
+    for idx, page in enumerate(pages, start=1):
+        image_path = os.path.join(output_dir, f"{file_name}_p_{idx}.jpg")
+        page.save(image_path, "JPEG")
+        image_paths.append(image_path)
+        logger.info("Saved pdf -> image: {}", image_path)
+
+    return image_paths
+
+
+def encode_image(image_path: str) -> str:
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode("utf-8")
+
+
+def get_model_input_for_img(path: str) -> dict[str, str]:
+    base64_image = encode_image(path)
+    return {
+        "type": "input_image",
+        "image_url": f"data:image/jpeg;base64,{base64_image}",
+    }

@@ -2,14 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from api.dal import room_db, task_db, user_db
 from api.dependencies import DataContext, get_data_context
-from api.dal import room_db
-from api.models.user_models import UserRole
-from api.dal import user_db
 from api.models.room_models import DashboardResponse
-from api.dal import task_db
 from api.models.task_models import ListTaskSetAttemptsRes
-
+from api.models.user_models import UserRole
 
 router = APIRouter(prefix="/room")
 

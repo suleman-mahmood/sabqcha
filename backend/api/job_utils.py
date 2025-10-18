@@ -1,10 +1,11 @@
 from typing import Any, Awaitable, Callable, Dict, Tuple
+
 from fastapi import BackgroundTasks
 from loguru import logger
 from psycopg.errors import UniqueViolation
 
-from api.dependencies import DataContext
 from api.dal import job_db
+from api.dependencies import DataContext
 
 AsyncFunc = Callable[..., Awaitable[Any]]
 IdentifierFn = Callable[[DataContext, Tuple[Any, ...], Dict[str, Any]], str]
@@ -40,8 +41,11 @@ def background_job_decorator(identifier_fn: IdentifierFn):
             except UniqueViolation:
                 in_progress = await job_db.get_job(data_context, identifier)
                 assert in_progress is not None
+
+                logger.info("Job {} already {}", identifier, in_progress)
                 return in_progress
 
+            logger.info("Starting job: {}", identifier)
             background_tasks.add_task(
                 _run_and_complete, data_context, job_id, worker, *args, **kwargs
             )

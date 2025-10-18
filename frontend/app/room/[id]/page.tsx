@@ -1,15 +1,13 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/components/AuthProvider";
-
-type TaskSet = { id: string; day: "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" };
-type Lecture = { id: string; title: string; created_at: string };
-type Week = { lecture_group_id: string; week_name: string; lectures: Lecture[]; task_sets: TaskSet[] };
+import { TeacherTasksSection } from "./components/TeacherTasksSection";
+import type { Week } from "./types";
 
 export default function Page() {
     const params = useParams();
@@ -30,7 +28,7 @@ export default function Page() {
 
     const roomId: string = rawId ?? "";
 
-    // Teacher view state
+    // ===== ORIGINAL: Teacher view state =====
     const [loading, setLoading] = useState(true);
     const [weeks, setWeeks] = useState<Week[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -39,13 +37,35 @@ export default function Page() {
     const [inviteCode, setInviteCode] = useState<string | null>(null);
     const [generating, setGenerating] = useState<Record<string, boolean>>({});
 
-    // Student view state
+    // ===== ORIGINAL: Student view types/state =====
     type Attempt = { id: string; time_elapsed: number; correct_count: number; incorrect_count: number; skip_count: number; accuracy: number; created_at: string };
     const [studentLoading, setStudentLoading] = useState(false);
     const [attemptsData, setAttemptsData] = useState<{ room_id?: string; room_display_name?: string; score?: number; task_sets?: { id: string; day: string; attempts: Attempt[] }[] } | null>(null);
 
+    const normalizeMessage = (value: string | null) => {
+        if (!value) return null;
+        const trimmed = value.trim();
+        return trimmed.length ? trimmed : null;
+    };
+
+    const showInfo = (message: string | null) => {
+        const normalized = normalizeMessage(message);
+        setInfoMessage(normalized);
+        if (normalized) {
+            setError(null);
+        }
+    };
+    const showError = (message: string | null) => {
+        const normalized = normalizeMessage(message);
+        setError(normalized);
+        if (normalized) {
+            setInfoMessage(null);
+        }
+    };
+
     useEffect(() => {
         if (!roomId) return;
+
         // If student, fetch attempts; otherwise fetch teacher data
         if (user && user.userRole !== "TEACHER") {
             let mounted = true;
@@ -72,7 +92,7 @@ export default function Page() {
             return () => { mounted = false; };
         }
 
-        // Teacher fetch
+        // Teacher fetch (original) + Quizzes fetch (new)
         let mounted = true;
         const fetchData = async () => {
             setLoading(true);
@@ -110,25 +130,18 @@ export default function Page() {
                 if (mounted) setLoading(false);
             }
         };
+
         fetchData();
         return () => { mounted = false; };
     }, [roomId]);
-
-    const DAYS: { key: string; label: string }[] = [
-        { key: "MONDAY", label: "M" },
-        { key: "TUESDAY", label: "T" },
-        { key: "WEDNESDAY", label: "W" },
-        { key: "THURSDAY", label: "R" },
-        { key: "FRIDAY", label: "F" },
-    ];
 
     const handleTaskSetClick = (taskSetId: string) => {
         router.push(`/task-set/${taskSetId}`);
     };
 
     const handleGenerateTasks = async (lectureGroupId: string) => {
-        setError(null);
-        setInfoMessage(null);
+        showError(null);
+        showInfo(null);
         setGenerating((s) => ({ ...s, [lectureGroupId]: true }));
         try {
             const res = await fetch(`/api/lecture/group/${encodeURIComponent(lectureGroupId)}`, {
@@ -141,10 +154,10 @@ export default function Page() {
             }
             const data = await res.json();
 
-            setInfoMessage(data.message || "Tasks are being generated, it will take approximately 5 mins, thank you for your patience! Revisit this page in a while and it will appear here");
+            showInfo(data.message || "Tasks are being generated, it will take approximately 5 mins, thank you for your patience! Revisit this page in a while and it will appear here");
         } catch (err: any) {
             console.error(err);
-            setError(err?.message || 'Failed to generate tasks');
+            showError(err?.message || 'Failed to generate tasks');
         } finally {
             setGenerating((s) => ({ ...s, [lectureGroupId]: false }));
         }
@@ -258,7 +271,7 @@ export default function Page() {
         );
     }
 
-    // Teacher view rendering (original)
+    // ===== ORIGINAL: Teacher view rendering (kept intact) with QUIZZES section added =====
     if (loading) {
         return (
             <div className="min-h-screen p-6 bg-background">
@@ -274,7 +287,7 @@ export default function Page() {
 
     return (
         <div className="min-h-screen p-6 bg-background">
-            <div className="max-w-4xl mx-auto">
+            <div className="max-w-6xl mx-auto">
                 <div className="mb-6">
                     <div className="flex items-center justify-between mb-2">
                         <div>
@@ -296,77 +309,17 @@ export default function Page() {
                     <div className="mb-4 text-muted-foreground">{infoMessage}</div>
                 )}
 
-                {weeks.length === 0 ? (
-                    <Card className="p-6">
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground">No weeks available for this room.</p>
-                        </CardContent>
-                    </Card>
-                ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {weeks.map((week, idx) => (
-                            <Card key={week.lecture_group_id || `${idx}`} className="p-4">
-                                <CardContent>
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div>
-                                            <p className="font-semibold">{week.week_name || 'Week'}</p>
-                                            <p className="text-xs text-muted-foreground mt-1">Lectures: {week.lectures?.length ?? 0}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="mb-3">
-                                        {week.lectures && week.lectures.length > 0 ? (
-                                            <ul className="space-y-2">
-                                                {week.lectures.map((lec) => (
-                                                    <li key={lec.id} className="text-sm">
-                                                        <div className="font-medium">{lec.title || 'Untitled'}</div>
-                                                        <div className="text-xs text-muted-foreground">{new Date(lec.created_at).toLocaleDateString()}</div>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        ) : (
-                                            <p className="text-sm text-muted-foreground">No lectures in this week.</p>
-                                        )}
-                                    </div>
-
-                                    <div className="flex items-center gap-2">
-                                        {Array.isArray(week.task_sets) && week.task_sets.length > 0 ? (
-                                            DAYS.map((d) => {
-                                                const ts = week.task_sets?.find((t) => t.day === d.key);
-                                                const present = !!ts;
-                                                return (
-                                                    <Button
-                                                        key={d.key}
-                                                        size="sm"
-                                                        variant={present ? "default" : "ghost"}
-                                                        onClick={() => ts && handleTaskSetClick(ts.id)}
-                                                        disabled={!present}
-                                                        aria-label={`Select ${d.key}`}
-                                                    >
-                                                        {d.label}
-                                                    </Button>
-                                                );
-                                            })
-                                        ) : (
-                                            <Button
-                                                size="sm"
-                                                variant="default"
-                                                onClick={() => handleGenerateTasks(week.lecture_group_id)}
-                                                disabled={!!generating[week.lecture_group_id] || !(week.lectures && week.lectures.length > 0)}
-                                            >
-                                                {generating[week.lecture_group_id] ? (
-                                                    <span className="flex items-center gap-2"><Spinner className="h-4 w-4" /> Generating...</span>
-                                                ) : (
-                                                    'Generate Tasks'
-                                                )}
-                                            </Button>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                    <div className="lg:col-span-3">
+                        <TeacherTasksSection
+                            weeks={weeks}
+                            generating={generating}
+                            onGenerateTasks={handleGenerateTasks}
+                            onTaskSetClick={handleTaskSetClick}
+                        />
                     </div>
-                )}
+
+                </div>
             </div>
         </div>
     );

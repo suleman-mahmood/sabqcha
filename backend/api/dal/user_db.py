@@ -1,7 +1,7 @@
-from api.dependencies import DataContext, UnAuthDataContext
-from api.utils import internal_id
 from api.dal import id_map
+from api.dependencies import DataContext, UnAuthDataContext
 from api.models.user_models import User
+from api.utils import internal_id
 
 
 async def get_user_id_from_device(data_context: UnAuthDataContext, device_id: str) -> str | None:

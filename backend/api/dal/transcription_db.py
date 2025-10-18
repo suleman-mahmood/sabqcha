@@ -1,8 +1,8 @@
 from psycopg import AsyncCursor
 
-from api.utils import internal_id
 from api.dal import id_map
 from api.models.transcription_models import TranscriptionListEntryUI
+from api.utils import internal_id
 
 
 async def insert_transcription(

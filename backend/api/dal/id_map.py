@@ -87,3 +87,12 @@ async def get_task_row_id(cur: AsyncCursor, task_id: str) -> int | None:
     if not row:
         return None
     return row[0]
+
+
+async def get_quiz_row_id(cur: AsyncCursor, quiz_id: str) -> int | None:
+    await cur.execute("select row_id from quiz where public_id = %s", (quiz_id,))
+    row = await cur.fetchone()
+    if not row:
+        return None
+    return row[0]
+
