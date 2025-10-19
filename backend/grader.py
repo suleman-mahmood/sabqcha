@@ -27,22 +27,22 @@ logger.add(
 )
 
 physics_p1_rubrics = [
-    "pdf_images/ms-p2_p_2.jpg",
-    "pdf_images/ms-p2_p_3.jpg",
-    "pdf_images/ms-p2_p_4.jpg",
-    "pdf_images/ms-p2_p_5.jpg",
-    "pdf_images/ms-p2_p_6.jpg",
-    "pdf_images/ms-p2_p_7.jpg",
+    "content/pdf_images/ms-p2_p_2.jpg",
+    "content/pdf_images/ms-p2_p_3.jpg",
+    "content/pdf_images/ms-p2_p_4.jpg",
+    "content/pdf_images/ms-p2_p_5.jpg",
+    "content/pdf_images/ms-p2_p_6.jpg",
+    "content/pdf_images/ms-p2_p_7.jpg",
 ]
 
 physics_p1_answers = [
-    "pdf_images/ms-p2_p_8.jpg",
-    "pdf_images/ms-p2_p_9.jpg",
-    "pdf_images/ms-p2_p_10.jpg",
-    "pdf_images/ms-p2_p_11.jpg",
-    "pdf_images/ms-p2_p_12.jpg",
-    "pdf_images/ms-p2_p_13.jpg",
-    "pdf_images/ms-p2_p_14.jpg",
+    "content/pdf_images/ms-p2_p_8.jpg",
+    "content/pdf_images/ms-p2_p_9.jpg",
+    "content/pdf_images/ms-p2_p_10.jpg",
+    "content/pdf_images/ms-p2_p_11.jpg",
+    "content/pdf_images/ms-p2_p_12.jpg",
+    "content/pdf_images/ms-p2_p_13.jpg",
+    "content/pdf_images/ms-p2_p_14.jpg",
 ]
 
 physics_p1_solutions = [
@@ -125,7 +125,7 @@ def grader() -> str:
     return response.output_text
 
 
-def pdf_to_images(pdf_path: str, output_dir: str = "pdf_images", dpi: int = 300):
+def pdf_to_images(pdf_path: str, output_dir: str = "content/pdf_images", dpi: int = 300):
     """
     Converts all pages of a PDF into images.
 
