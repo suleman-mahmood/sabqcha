@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-    title: "Sabqcha",
-    description: "AI based Gamified Micro Learning Ed-Tech Platform",
+    title: "Sool",
+    description: "AI Gamified Micro-Learning App",
 };
 
 export default function RootLayout({
