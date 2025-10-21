@@ -225,7 +225,9 @@ export default function Page() {
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <Button size="sm" variant="outline" onClick={() => router.push(`/task-set/${ts.id}`)}>Retry</Button>
-                                                <Button size="sm" variant="ghost" onClick={() => router.push(`/analysis/${ts.id}`)}>Analyse Mistakes</Button>
+                                                {Array.isArray(ts.attempts) && ts.attempts.length > 0 && (
+                                                    <Button size="sm" variant="ghost" onClick={() => router.push(`/analysis/${ts.id}`)}>Analyse Mistakes</Button>
+                                                )}
                                             </div>
                                         </div>
 
