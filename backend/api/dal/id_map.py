@@ -96,3 +96,10 @@ async def get_quiz_row_id(cur: AsyncCursor, quiz_id: str) -> int | None:
         return None
     return row[0]
 
+
+async def get_subject_row_id(cur: AsyncCursor, subject_id: str) -> int | None:
+    await cur.execute("select row_id from subject where public_id = %s", (subject_id,))
+    row = await cur.fetchone()
+    if not row:
+        return None
+    return row[0]
