@@ -117,6 +117,9 @@ async def grade_question(
     past_paper = await past_paper_db.get_past_paper(data_context, past_paper_id)
     assert past_paper
 
+    rubric = await past_paper_db.get_rubric_for_past_paper(data_context, past_paper_id)
+    assert rubric
+
     with tempfile.TemporaryDirectory() as temp_dir:
         solution_file = await download_temp_img_file(bucket, solution_file_path, temp_dir)
         question_file = await download_temp_img_file(
@@ -125,9 +128,6 @@ async def grade_question(
         marking_scheme_file = await download_temp_img_file(
             bucket, past_paper.marking_scheme_file_path, temp_dir
         )
-
-        # FIXME
-        rubric_content = ""
 
         response = await asyncio.to_thread(
             openai_client.responses.create,
@@ -139,7 +139,7 @@ async def grade_question(
                     "content": [
                         {
                             "type": "input_text",
-                            "text": f"Rubric for grading guidelines: {rubric_content}",
+                            "text": f"Rubric for grading guidelines: {rubric}",
                         },
                         {
                             "type": "input_text",

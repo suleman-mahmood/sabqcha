@@ -1,4 +1,4 @@
-\restrict c2B4tlfk9SqdKLRWpbz5zhVwLFQcL49R5pEhbed739TN1PMWgbDEu71Bb2Ia1Rv
+\restrict UZ23mw9bUekv26hSFeptEwuapZ3M2yhekgF3ixlRHTCdSHPjtIRk7KeqtdcRCOr
 
 -- Dumped from database version 16.4 (Debian 16.4-1.pgdg120+1)
 -- Dumped by pg_dump version 17.6
@@ -473,7 +473,8 @@ CREATE TABLE public.subject (
     display_name text NOT NULL,
     code text NOT NULL,
     program public.program_type NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    rubric_content text
 );
 
 
@@ -1118,7 +1119,7 @@ ALTER TABLE ONLY public.teacher
 -- PostgreSQL database dump complete
 --
 
-\unrestrict c2B4tlfk9SqdKLRWpbz5zhVwLFQcL49R5pEhbed739TN1PMWgbDEu71Bb2Ia1Rv
+\unrestrict UZ23mw9bUekv26hSFeptEwuapZ3M2yhekgF3ixlRHTCdSHPjtIRk7KeqtdcRCOr
 
 
 --
@@ -1140,4 +1141,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20251016061007'),
     ('20251018050651'),
     ('20251018061509'),
-    ('20251025080248');
+    ('20251025080248'),
+    ('20251025143919');
