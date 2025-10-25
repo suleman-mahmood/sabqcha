@@ -3,6 +3,7 @@ import os
 import sys
 from io import BytesIO
 
+import fitz
 from api.prompts import GRADER_SYSTEM_PROMPT
 from loguru import logger
 from openai import OpenAI
@@ -27,12 +28,12 @@ logger.add(
 )
 
 physics_p1_rubrics = [
-    "content/pdf_images/ms-p2_p_2.jpg",
-    "content/pdf_images/ms-p2_p_3.jpg",
-    "content/pdf_images/ms-p2_p_4.jpg",
-    "content/pdf_images/ms-p2_p_5.jpg",
-    "content/pdf_images/ms-p2_p_6.jpg",
-    "content/pdf_images/ms-p2_p_7.jpg",
+    "content/pdf_images/rubric-p2_p_1.jpg",
+    "content/pdf_images/rubric-p2_p_2.jpg",
+    "content/pdf_images/rubric-p2_p_3.jpg",
+    "content/pdf_images/rubric-p2_p_4.jpg",
+    "content/pdf_images/rubric-p2_p_5.jpg",
+    "content/pdf_images/rubric-p2_p_6.jpg",
 ]
 
 physics_p1_answers = [
@@ -58,10 +59,13 @@ physics_p1_solutions = [
 def main():
     logger.info("Hello from grader!")
 
-    # pdf_to_images("qp-p2.pdf")
-    # pdf_to_images("ms-p2.pdf")
+    # pdf_to_images("content/ms-p2-2025.pdf")
+    # pdf_to_images("content/sol-p2-maryam.pdf")
+    # pdf_to_images("content/marking-scheme-p2.pdf")
     # grader()
-    draw_annotations()
+    # draw_annotations()
+    # simple_grader()
+    read_pdf()
 
 
 def encode_image(image_path) -> str:
@@ -213,6 +217,77 @@ def draw_annotations():
         draw.rectangle([x, y, x + ww, y + hh], outline="red", width=3)
 
     img.save("annotated_answer.jpg")
+
+
+def simple_grader():
+    """
+    Single Question grader
+    - Randomly get a question from bank
+    - Student writes answer on a piece of paper
+    - Student uploads image
+    - AI grades in realtime and responds with answer
+    """
+    response = openai_client.responses.create(
+        model="gpt-5-mini",
+        input=[
+            {"role": "system", "content": GRADER_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": "Rubric for grading guidelines:",
+                    },
+                    *[get_model_input_for_img(img) for img in physics_p1_rubrics],
+                    {
+                        "type": "input_text",
+                        "text": "Correct solution for reference:",
+                    },
+                    get_model_input_for_img("content/pdf_images/ms-p2-2025.jpg"),
+                    {
+                        "type": "input_text",
+                        "text": "Student's answer to be graded:",
+                    },
+                    get_model_input_for_img("content/pdf_images/sol-p2-maryam_p_1.jpg"),
+                    get_model_input_for_img("content/pdf_images/sol-p2-maryam_p_2.jpg"),
+                    {
+                        "type": "input_text",
+                        "text": (
+                            "Grade the student's answer based on the rubric and correct solution."
+                        ),
+                    },
+                ],
+            },
+        ],
+    )
+
+    logger.info("Response: {}", response.output_text)
+    if response.usage:
+        logger.info(
+            "{} Input and {} Output tokens used",
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+        )
+
+    return response.output_text
+
+
+def read_pdf():
+    doc = fitz.open("content/qp-p2.pdf")  # open a document
+
+    for page_num, page in enumerate(doc.pages(), start=1):
+        # Extract text as a list of blocks
+        blocks = page.get_text("blocks")
+        # Each block: (x0, y0, x1, y1, "text", block_no, ...)
+
+        # Sort by vertical position (top to bottom)
+        blocks = sorted(blocks, key=lambda b: b[1])
+
+        for block in blocks:
+            text: str = block[4].strip()
+            if text.startswith("1"):
+                logger.info("[Page {}] {}", page_num, text)
+                logger.info("Blocks: {}", block)
 
 
 if __name__ == "__main__":
