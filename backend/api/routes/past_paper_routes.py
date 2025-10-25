@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
+from google.cloud.storage import Bucket
+from openai import OpenAI
 from pydantic import BaseModel
 
+from api.controllers import grade_controller
 from api.dal import past_paper_db
-from api.dependencies import DataContext, get_data_context
+from api.dependencies import DataContext, get_bucket, get_data_context, get_openai_client
 from api.models.past_paper_models import PastPaper
 from api.models.user_models import UserRole
 
@@ -38,10 +41,15 @@ class GradeSolutionResponse(BaseModel):
 async def grade_solution(
     past_paper_id: str,
     body: GradeSolutionBody,
+    # background_tasks: BackgroundTasks,
+    bucket: Bucket = Depends(get_bucket),
+    openai_client: OpenAI = Depends(get_openai_client),
     data_context: DataContext = Depends(get_data_context),
 ):
-    return JSONResponse(
-        GradeSolutionResponse(comment="Grading in progress, refresh in 2 mins").model_dump(
-            mode="json"
-        )
+    solution_id = await past_paper_db.insert_student_solution(
+        data_context, past_paper_id, body.solution_file_path
     )
+    comment = await grade_controller.grade_question(
+        data_context, bucket, openai_client, solution_id, past_paper_id, body.solution_file_path
+    )
+    return JSONResponse(GradeSolutionResponse(comment=comment).model_dump(mode="json"))

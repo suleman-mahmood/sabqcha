@@ -10,10 +10,10 @@ from google.cloud.storage import Bucket
 from openai import OpenAI
 from pdf2image import convert_from_path
 
-from ..dal import quiz_db
-from ..dependencies import DataContext
-from ..job_utils import background_job_decorator
-from ..prompts import GRADER_SYSTEM_PROMPT
+from api.dal import past_paper_db, quiz_db
+from api.dependencies import DataContext
+from api.job_utils import background_job_decorator
+from api.prompts import GRADER_SYSTEM_PROMPT
 
 
 @background_job_decorator(
@@ -96,6 +96,106 @@ async def grade_quiz(
             response.usage.input_tokens,
             response.usage.output_tokens,
         )
+
+
+async def grade_question(
+    data_context: DataContext,
+    bucket: Bucket,
+    openai_client: OpenAI,
+    solution_id: str,
+    past_paper_id: str,
+    solution_file_path: str,
+) -> str:
+    """
+    1. In a temp_dir download the question_paper, marking_scheme, student_solution
+    2. Send to OpenAI for grading
+    3. Return response
+    """
+
+    logger.info("Grading past paper {}", past_paper_id)
+
+    past_paper = await past_paper_db.get_past_paper(data_context, past_paper_id)
+    assert past_paper
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        solution_file = await download_temp_img_file(bucket, solution_file_path, temp_dir)
+        question_file = await download_temp_img_file(
+            bucket, past_paper.question_file_path, temp_dir
+        )
+        marking_scheme_file = await download_temp_img_file(
+            bucket, past_paper.marking_scheme_file_path, temp_dir
+        )
+
+        # FIXME
+        rubric_content = ""
+
+        response = await asyncio.to_thread(
+            openai_client.responses.create,
+            model="gpt-5-mini",
+            input=[
+                {"role": "system", "content": GRADER_SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": f"Rubric for grading guidelines: {rubric_content}",
+                        },
+                        {
+                            "type": "input_text",
+                            "text": "Question for reference: ",
+                        },
+                        get_model_input_for_img(question_file),
+                        {
+                            "type": "input_text",
+                            "text": "Correct solution for reference: ",
+                        },
+                        get_model_input_for_img(marking_scheme_file),
+                        {
+                            "type": "input_text",
+                            "text": "Student's answer to be graded:",
+                        },
+                        get_model_input_for_img(solution_file),
+                        {
+                            "type": "input_text",
+                            "text": (
+                                "Grade the student's answer based on the rubric and correct solution."
+                            ),
+                        },
+                    ],
+                },
+            ],
+        )
+
+    logger.info(
+        "LLM responded with solution: {} ... {}",
+        response.output_text[:10],
+        response.output_text[-10:],
+    )
+    if response.usage:
+        logger.info(
+            "{} Input and {} Output tokens used",
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+        )
+
+    await past_paper_db.update_llm_contents_for_solution(
+        data_context, solution_id, response.output_text
+    )
+
+    return response.output_text
+
+
+async def download_temp_img_file(bucket: Bucket, file_path: str, dir: str) -> str:
+    file_path_obj = Path(file_path)
+    extension = file_path_obj.suffix
+    assert extension in [".jpg", ".jpeg", ".png"]
+    storage_file = tempfile.NamedTemporaryFile(suffix=extension, dir=dir, delete=False)
+
+    blob = bucket.blob(file_path)
+    await asyncio.to_thread(blob.download_to_filename, storage_file.name)
+
+    return storage_file.name
 
 
 def pdf_to_images(pdf_path: str, output_dir: str = "pdf_images", dpi: int = 300):
