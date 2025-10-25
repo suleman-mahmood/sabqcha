@@ -39,7 +39,7 @@ create table student_past_paper_solution (
 
   past_paper_bank_row_id bigint not null references past_paper_bank(row_id),
   solution_file_path text not null,
-  llm_content_extract_row_id bigint not null references llm_content_extract(row_id),
+  llm_content_extract_row_id bigint references llm_content_extract(row_id),
 
   created_at timestamptz not null default now()
 );

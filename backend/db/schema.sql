@@ -1,4 +1,4 @@
-\restrict 7lFSxNIqqUFV5gzLEaZs0YsV2zbSQPrFzXv5gcuR5sFZ4pjODJninRL16qd3vmA
+\restrict c2B4tlfk9SqdKLRWpbz5zhVwLFQcL49R5pEhbed739TN1PMWgbDEu71Bb2Ia1Rv
 
 -- Dumped from database version 16.4 (Debian 16.4-1.pgdg120+1)
 -- Dumped by pg_dump version 17.6
@@ -390,7 +390,7 @@ CREATE TABLE public.student_past_paper_solution (
     public_id text NOT NULL,
     past_paper_bank_row_id bigint NOT NULL,
     solution_file_path text NOT NULL,
-    llm_content_extract_row_id bigint NOT NULL,
+    llm_content_extract_row_id bigint,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
@@ -1118,7 +1118,7 @@ ALTER TABLE ONLY public.teacher
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 7lFSxNIqqUFV5gzLEaZs0YsV2zbSQPrFzXv5gcuR5sFZ4pjODJninRL16qd3vmA
+\unrestrict c2B4tlfk9SqdKLRWpbz5zhVwLFQcL49R5pEhbed739TN1PMWgbDEu71Bb2Ia1Rv
 
 
 --
