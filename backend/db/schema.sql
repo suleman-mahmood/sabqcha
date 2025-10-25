@@ -1,4 +1,4 @@
-\restrict 9heJRQsrP175ufK60xqWq3FS8erAedTYCidSNczDsR4p7QpJ61JTpQr70zJIUx3
+\restrict c2B4tlfk9SqdKLRWpbz5zhVwLFQcL49R5pEhbed739TN1PMWgbDEu71Bb2Ia1Rv
 
 -- Dumped from database version 16.4 (Debian 16.4-1.pgdg120+1)
 -- Dumped by pg_dump version 17.6
@@ -23,6 +23,16 @@ CREATE TYPE public.llm_content_extract_type AS ENUM (
     'RUBRIC',
     'MARKING_SCHEME',
     'GRADED_STUDENT_SOLUTION'
+);
+
+
+--
+-- Name: program_type; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.program_type AS ENUM (
+    'O_LEVEL',
+    'A_LEVEL'
 );
 
 
@@ -206,6 +216,38 @@ ALTER TABLE public.mistake_analysis ALTER COLUMN row_id ADD GENERATED ALWAYS AS 
 
 
 --
+-- Name: past_paper_bank; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.past_paper_bank (
+    row_id bigint NOT NULL,
+    public_id text NOT NULL,
+    subject_row_id bigint NOT NULL,
+    season text NOT NULL,
+    year integer NOT NULL,
+    paper integer NOT NULL,
+    variant integer NOT NULL,
+    question_file_path text NOT NULL,
+    marking_scheme_file_path text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: past_paper_bank_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.past_paper_bank ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.past_paper_bank_row_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: quiz; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -246,7 +288,8 @@ CREATE TABLE public.room (
     display_name text NOT NULL,
     invite_code text NOT NULL,
     teacher_row_id bigint NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    subject_row_id bigint
 );
 
 
@@ -339,6 +382,34 @@ CREATE TABLE public.student (
 
 
 --
+-- Name: student_past_paper_solution; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.student_past_paper_solution (
+    row_id bigint NOT NULL,
+    public_id text NOT NULL,
+    past_paper_bank_row_id bigint NOT NULL,
+    solution_file_path text NOT NULL,
+    llm_content_extract_row_id bigint,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: student_past_paper_solution_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.student_past_paper_solution ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.student_past_paper_solution_row_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: student_room; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -384,6 +455,34 @@ CREATE TABLE public.student_solution (
 
 ALTER TABLE public.student_solution ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME public.student_solution_row_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: subject; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.subject (
+    row_id bigint NOT NULL,
+    public_id text NOT NULL,
+    display_name text NOT NULL,
+    code text NOT NULL,
+    program public.program_type NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: subject_row_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.subject ALTER COLUMN row_id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.subject_row_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -608,6 +707,22 @@ ALTER TABLE ONLY public.mistake_analysis
 
 
 --
+-- Name: past_paper_bank past_paper_bank_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.past_paper_bank
+    ADD CONSTRAINT past_paper_bank_pkey PRIMARY KEY (row_id);
+
+
+--
+-- Name: past_paper_bank past_paper_bank_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.past_paper_bank
+    ADD CONSTRAINT past_paper_bank_public_id_key UNIQUE (public_id);
+
+
+--
 -- Name: quiz quiz_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -680,6 +795,22 @@ ALTER TABLE ONLY public.session
 
 
 --
+-- Name: student_past_paper_solution student_past_paper_solution_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.student_past_paper_solution
+    ADD CONSTRAINT student_past_paper_solution_pkey PRIMARY KEY (row_id);
+
+
+--
+-- Name: student_past_paper_solution student_past_paper_solution_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.student_past_paper_solution
+    ADD CONSTRAINT student_past_paper_solution_public_id_key UNIQUE (public_id);
+
+
+--
 -- Name: student student_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -709,6 +840,30 @@ ALTER TABLE ONLY public.student_solution
 
 ALTER TABLE ONLY public.student_solution
     ADD CONSTRAINT student_solution_public_id_key UNIQUE (public_id);
+
+
+--
+-- Name: subject subject_code_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.subject
+    ADD CONSTRAINT subject_code_key UNIQUE (code);
+
+
+--
+-- Name: subject subject_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.subject
+    ADD CONSTRAINT subject_pkey PRIMARY KEY (row_id);
+
+
+--
+-- Name: subject subject_public_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.subject
+    ADD CONSTRAINT subject_public_id_key UNIQUE (public_id);
 
 
 --
@@ -808,6 +963,14 @@ ALTER TABLE ONLY public.mistake_analysis
 
 
 --
+-- Name: past_paper_bank past_paper_bank_subject_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.past_paper_bank
+    ADD CONSTRAINT past_paper_bank_subject_row_id_fkey FOREIGN KEY (subject_row_id) REFERENCES public.subject(row_id);
+
+
+--
 -- Name: quiz quiz_ms_llm_content_extract_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -832,6 +995,14 @@ ALTER TABLE ONLY public.quiz
 
 
 --
+-- Name: room room_subject_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.room
+    ADD CONSTRAINT room_subject_row_id_fkey FOREIGN KEY (subject_row_id) REFERENCES public.subject(row_id);
+
+
+--
 -- Name: room room_teacher_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -845,6 +1016,22 @@ ALTER TABLE ONLY public.room
 
 ALTER TABLE ONLY public.session
     ADD CONSTRAINT session_sabqcha_user_row_id_fkey FOREIGN KEY (sabqcha_user_row_id) REFERENCES public.sabqcha_user(row_id);
+
+
+--
+-- Name: student_past_paper_solution student_past_paper_solution_llm_content_extract_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.student_past_paper_solution
+    ADD CONSTRAINT student_past_paper_solution_llm_content_extract_row_id_fkey FOREIGN KEY (llm_content_extract_row_id) REFERENCES public.llm_content_extract(row_id);
+
+
+--
+-- Name: student_past_paper_solution student_past_paper_solution_past_paper_bank_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.student_past_paper_solution
+    ADD CONSTRAINT student_past_paper_solution_past_paper_bank_row_id_fkey FOREIGN KEY (past_paper_bank_row_id) REFERENCES public.past_paper_bank(row_id);
 
 
 --
@@ -931,7 +1118,7 @@ ALTER TABLE ONLY public.teacher
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 9heJRQsrP175ufK60xqWq3FS8erAedTYCidSNczDsR4p7QpJ61JTpQr70zJIUx3
+\unrestrict c2B4tlfk9SqdKLRWpbz5zhVwLFQcL49R5pEhbed739TN1PMWgbDEu71Bb2Ia1Rv
 
 
 --
@@ -952,4 +1139,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20251016055812'),
     ('20251016061007'),
     ('20251018050651'),
-    ('20251018061509');
+    ('20251018061509'),
+    ('20251025080248');
