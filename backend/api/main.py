@@ -15,6 +15,7 @@ from api.dependencies import get_cursor
 from api.routes import (
     leaderboard_routes,
     lecture_routes,
+    past_paper_routes,
     quiz_routes,
     room_routes,
     task_routes,
@@ -134,6 +135,7 @@ app.include_router(lecture_routes.router)
 app.include_router(room_routes.router)
 app.include_router(task_routes.router)
 app.include_router(quiz_routes.router)
+app.include_router(past_paper_routes.router)
 
 
 @app.get("/health-check")

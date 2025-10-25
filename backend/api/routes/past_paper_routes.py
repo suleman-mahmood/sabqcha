@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -17,7 +17,8 @@ async def get_random_past_paper(
     assert data_context.user_role == UserRole.STUDENT
 
     subject_id = await past_paper_db.get_subject_id_for_room(data_context, room_id)
-    assert subject_id
+    if not subject_id:
+        raise HTTPException(status_code=400, detail="No subject found for this room")
 
     paper = await past_paper_db.get_random_past_paper(data_context, subject_id)
     assert paper
