@@ -103,3 +103,11 @@ async def get_subject_row_id(cur: AsyncCursor, subject_id: str) -> int | None:
     if not row:
         return None
     return row[0]
+
+
+async def get_past_paper_row_id(cur: AsyncCursor, past_paper_id: str) -> int | None:
+    await cur.execute("select row_id from past_paper_bank where public_id = %s", (past_paper_id,))
+    row = await cur.fetchone()
+    if not row:
+        return None
+    return row[0]
