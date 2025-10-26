@@ -7,7 +7,7 @@ from api.utils import internal_id
 
 
 async def insert_student_solution(
-    data_context: DataContext, past_paper_id: str, solution_file_path: str
+    data_context: DataContext, past_paper_id: str, solution_file_path: str, user_id: str
 ) -> str:
     solution_id = internal_id()
 
@@ -15,16 +15,19 @@ async def insert_student_solution(
         past_paper_row_id = await id_map.get_past_paper_row_id(cur, past_paper_id)
         assert past_paper_row_id
 
+        user_row_id = await id_map.get_user_row_id(cur, user_id)
+        assert user_row_id
+
         await cur.execute(
             """
             insert into student_past_paper_solution (
-                public_id, past_paper_bank_row_id, solution_file_path
+                public_id, past_paper_bank_row_id, solution_file_path, sabqcha_user_row_id
             )
             values (
-                %s, %s, %s
+                %s, %s, %s, %s
             )
             """,
-            (solution_id, past_paper_row_id, solution_file_path),
+            (solution_id, past_paper_row_id, solution_file_path, user_row_id),
         )
 
     return solution_id
@@ -62,6 +65,38 @@ async def update_llm_contents_for_solution(
         )
 
 
+async def get_student_graded_solution(
+    data_context: DataContext, user_id: str, past_paper_id: str
+) -> str | None:
+    async with data_context.get_cursor() as cur:
+        user_row_id = await id_map.get_user_row_id(cur, user_id)
+        assert user_row_id
+
+        past_paper_row_id = await id_map.get_past_paper_row_id(cur, past_paper_id)
+        assert past_paper_row_id
+
+        await cur.execute(
+            """
+            select
+                lce.content
+            from
+                student_past_paper_solution spps
+                join llm_content_extract lce on lce.row_id = spps.llm_content_extract_row_id
+            where
+                spps.past_paper_bank_row_id = %s and
+                spps.sabqcha_user_row_id = %s
+            order by
+                spps.created_at desc
+            limit 1
+            """,
+            (past_paper_row_id, user_row_id),
+        )
+        row = await cur.fetchone()
+        if not row:
+            return None
+    return row[0]
+
+
 async def get_rubric_for_past_paper(data_context: DataContext, past_paper_id: str) -> str | None:
     async with data_context.get_cursor() as cur:
         await cur.execute(
@@ -72,7 +107,7 @@ async def get_rubric_for_past_paper(data_context: DataContext, past_paper_id: st
                 subject s
                 join past_paper_bank ppb on ppb.subject_row_id = s.row_id
             where
-                ppb.public_id
+                ppb.public_id = %s
             """,
             (past_paper_id,),
         )

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from google.cloud.storage import Bucket
 from openai import OpenAI
@@ -41,15 +41,31 @@ class GradeSolutionResponse(BaseModel):
 async def grade_solution(
     past_paper_id: str,
     body: GradeSolutionBody,
-    # background_tasks: BackgroundTasks,
+    background_tasks: BackgroundTasks,
     bucket: Bucket = Depends(get_bucket),
     openai_client: OpenAI = Depends(get_openai_client),
     data_context: DataContext = Depends(get_data_context),
 ):
-    solution_id = await past_paper_db.insert_student_solution(
-        data_context, past_paper_id, body.solution_file_path
+    in_progress = await grade_controller.grade_question(
+        background_tasks,
+        data_context,
+        bucket,
+        openai_client,
+        past_paper_id=past_paper_id,
+        solution_file_path=body.solution_file_path,
+        user_id=data_context.user_id,
     )
-    comment = await grade_controller.grade_question(
-        data_context, bucket, openai_client, solution_id, past_paper_id, body.solution_file_path
+    if in_progress:
+        return JSONResponse(
+            GradeSolutionResponse(comment="Task in progress, submit again in a min").model_dump(
+                mode="json"
+            )
+        )
+
+    comment = await past_paper_db.get_student_graded_solution(
+        data_context, data_context.user_id, past_paper_id
     )
+    assert comment
+
+    # TODO: Fetch solution and return
     return JSONResponse(GradeSolutionResponse(comment=comment).model_dump(mode="json"))

@@ -98,13 +98,17 @@ async def grade_quiz(
         )
 
 
+@background_job_decorator(
+    lambda _, __, kwargs: f"{kwargs.get('user_id')}-{kwargs.get('past_paper_id')}"
+)
 async def grade_question(
     data_context: DataContext,
     bucket: Bucket,
     openai_client: OpenAI,
-    solution_id: str,
+    *,
     past_paper_id: str,
     solution_file_path: str,
+    user_id: str,
 ) -> str:
     """
     1. In a temp_dir download the question_paper, marking_scheme, student_solution
@@ -112,7 +116,11 @@ async def grade_question(
     3. Return response
     """
 
-    logger.info("Grading past paper {}", past_paper_id)
+    logger.info("Grading past paper {} for user {}", past_paper_id, user_id)
+
+    solution_id = await past_paper_db.insert_student_solution(
+        data_context, past_paper_id, solution_file_path, user_id
+    )
 
     past_paper = await past_paper_db.get_past_paper(data_context, past_paper_id)
     assert past_paper

@@ -1,4 +1,4 @@
-\restrict UZ23mw9bUekv26hSFeptEwuapZ3M2yhekgF3ixlRHTCdSHPjtIRk7KeqtdcRCOr
+\restrict xclvJN7CQZKzR1DnLH8CjETHL7zNSwVlc38m9Riz3kLvv5CR6eQPQByDSjhbQ1Q
 
 -- Dumped from database version 16.4 (Debian 16.4-1.pgdg120+1)
 -- Dumped by pg_dump version 17.6
@@ -391,7 +391,8 @@ CREATE TABLE public.student_past_paper_solution (
     past_paper_bank_row_id bigint NOT NULL,
     solution_file_path text NOT NULL,
     llm_content_extract_row_id bigint,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    sabqcha_user_row_id bigint
 );
 
 
@@ -1036,6 +1037,14 @@ ALTER TABLE ONLY public.student_past_paper_solution
 
 
 --
+-- Name: student_past_paper_solution student_past_paper_solution_sabqcha_user_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.student_past_paper_solution
+    ADD CONSTRAINT student_past_paper_solution_sabqcha_user_row_id_fkey FOREIGN KEY (sabqcha_user_row_id) REFERENCES public.sabqcha_user(row_id);
+
+
+--
 -- Name: student_room student_room_room_row_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1119,7 +1128,7 @@ ALTER TABLE ONLY public.teacher
 -- PostgreSQL database dump complete
 --
 
-\unrestrict UZ23mw9bUekv26hSFeptEwuapZ3M2yhekgF3ixlRHTCdSHPjtIRk7KeqtdcRCOr
+\unrestrict xclvJN7CQZKzR1DnLH8CjETHL7zNSwVlc38m9Riz3kLvv5CR6eQPQByDSjhbQ1Q
 
 
 --
@@ -1142,4 +1151,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20251018050651'),
     ('20251018061509'),
     ('20251025080248'),
-    ('20251025143919');
+    ('20251025143919'),
+    ('20251026083021');
