@@ -9,7 +9,7 @@ import ffmpeg
 import requests
 from google.cloud.storage import Bucket
 from loguru import logger
-from openai import OpenAI
+from openai import AsyncOpenAI
 from pdf2image import convert_from_path
 
 from api import utils
@@ -40,7 +40,7 @@ UPLIFT_API_KEY = os.getenv("UPLIFT_API_KEY")
 
 @background_job_decorator(lambda _, args, kwargs: kwargs.get("lecture_group_id") or args[2])
 async def transcribe(
-    data_context: DataContext, bucket: Bucket, openai_client: OpenAI, lecture_group_id: str
+    data_context: DataContext, bucket: Bucket, openai_client: AsyncOpenAI, lecture_group_id: str
 ):
     logger.info("Generating task sets for lecture group {}", lecture_group_id)
 
@@ -60,8 +60,7 @@ async def transcribe(
         final_mega_transcript[:10],
         final_mega_transcript[-10:],
     )
-    openai_res = await asyncio.to_thread(
-        openai_client.responses.parse,
+    openai_res = await openai_client.responses.parse(
         model="gpt-5-mini",
         input=[
             {"role": "system", "content": MCQ_SYSTEM_PROMPT},
@@ -195,7 +194,7 @@ async def transcribe_lecture(bucket: Bucket, file_path: str) -> str:
 
 
 async def _extract_text_from_file(
-    bucket: Bucket, file_path: str, openai_client: OpenAI, system_prompt: str
+    bucket: Bucket, file_path: str, openai_client: AsyncOpenAI, system_prompt: str
 ) -> str:
     if not file_path:
         raise FileNotFoundError
@@ -216,8 +215,7 @@ async def _extract_text_from_file(
                 raise NoImagesInPdfError
 
             try:
-                openai_res = await asyncio.to_thread(
-                    openai_client.responses.create,
+                openai_res = await openai_client.responses.create(
                     model="gpt-5-mini",
                     input=[
                         {
@@ -237,8 +235,7 @@ async def _extract_text_from_file(
 
         elif extension in image_extensions:
             try:
-                openai_res = await asyncio.to_thread(
-                    openai_client.responses.create,
+                openai_res = await openai_client.responses.create(
                     model="gpt-5-mini",
                     input=[
                         {
@@ -261,7 +258,7 @@ async def _extract_text_from_file(
 
 @background_job_decorator(lambda _, __, kwargs: kwargs.get("quiz_id", ""))
 async def transcribe_quiz(
-    data_context: DataContext, bucket: Bucket, openai_client: OpenAI, quiz_id: str
+    data_context: DataContext, bucket: Bucket, openai_client: AsyncOpenAI, quiz_id: str
 ):
     """
     1. Download quiz files (answer sheet and rubric) from storage

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from google.cloud.storage import Bucket
-from openai import OpenAI
+from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 from api.controllers import transcribe_controller
@@ -31,7 +31,7 @@ async def create_quiz(
     body: CreateQuizBody,
     background_tasks: BackgroundTasks,
     bucket: Bucket = Depends(get_bucket),
-    openai_client: OpenAI = Depends(get_openai_client),
+    openai_client: AsyncOpenAI = Depends(get_openai_client),
     data_context: DataContext = Depends(get_data_context),
 ):
     assert data_context.user_role == UserRole.TEACHER
@@ -92,7 +92,7 @@ async def grade_quiz(
     quiz_id: str,
     background_tasks: BackgroundTasks,
     bucket: Bucket = Depends(get_bucket),
-    openai_client: OpenAI = Depends(get_openai_client),
+    openai_client: AsyncOpenAI = Depends(get_openai_client),
     data_context: DataContext = Depends(get_data_context),
 ):
     assert data_context.user_role == UserRole.TEACHER

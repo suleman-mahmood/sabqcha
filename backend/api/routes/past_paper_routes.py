@@ -1,7 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from google.cloud.storage import Bucket
-from openai import OpenAI
+from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 from api.controllers import grade_controller
@@ -43,7 +43,7 @@ async def grade_solution(
     body: GradeSolutionBody,
     background_tasks: BackgroundTasks,
     bucket: Bucket = Depends(get_bucket),
-    openai_client: OpenAI = Depends(get_openai_client),
+    openai_client: AsyncOpenAI = Depends(get_openai_client),
     data_context: DataContext = Depends(get_data_context),
 ):
     in_progress = await grade_controller.grade_question(

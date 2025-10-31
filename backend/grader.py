@@ -6,12 +6,12 @@ from io import BytesIO
 import fitz
 from api.prompts import GRADER_SYSTEM_PROMPT
 from loguru import logger
-from openai import OpenAI
+from openai import AsyncOpenAI
 from pdf2image import convert_from_path
 from PIL import Image, ImageDraw, ImageOps
 from pydantic import BaseModel
 
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 # Setup logger
@@ -82,10 +82,10 @@ def get_model_input_for_img(path):
     }
 
 
-def grader() -> str:
+async def grader() -> str:
     # "text": "Extract handwritten notes from the images provided",
     # "text": "Extract printed text from the images, maintain the text structure",
-    response = openai_client.responses.create(
+    response = await openai_client.responses.create(
         model="gpt-5-mini",
         input=[
             {"role": "system", "content": GRADER_SYSTEM_PROMPT},
@@ -172,7 +172,7 @@ class AnnotationRes(BaseModel):
     annotations: list[Anno]
 
 
-def draw_annotations():
+async def draw_annotations():
     img = Image.open("s-1-cropped.jpg")
     img = ImageOps.exif_transpose(img)
 
@@ -180,7 +180,7 @@ def draw_annotations():
     img.save(buffer, format="jpeg")
     img_64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
-    response = openai_client.responses.parse(
+    response = await openai_client.responses.parse(
         model="gpt-5-mini",
         input=[
             {
@@ -219,7 +219,7 @@ def draw_annotations():
     img.save("annotated_answer.jpg")
 
 
-def simple_grader():
+async def simple_grader():
     """
     Single Question grader
     - Randomly get a question from bank
@@ -227,7 +227,7 @@ def simple_grader():
     - Student uploads image
     - AI grades in realtime and responds with answer
     """
-    response = openai_client.responses.create(
+    response = await openai_client.responses.create(
         model="gpt-5-mini",
         input=[
             {"role": "system", "content": GRADER_SYSTEM_PROMPT},

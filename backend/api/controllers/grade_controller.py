@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pikepdf
 from google.cloud.storage import Bucket
-from openai import OpenAI
+from openai import AsyncOpenAI
 from pdf2image import convert_from_path
 
 from api.dal import past_paper_db, quiz_db
@@ -20,7 +20,11 @@ from api.prompts import GRADER_SYSTEM_PROMPT
     lambda _, __, kwargs: f"{kwargs.get('quiz_id')}-{kwargs.get('solution_id')}"
 )
 async def grade_quiz(
-    data_context: DataContext, bucket: Bucket, openai_client: OpenAI, quiz_id: str, solution_id: str
+    data_context: DataContext,
+    bucket: Bucket,
+    openai_client: AsyncOpenAI,
+    quiz_id: str,
+    solution_id: str,
 ):
     """
     Find the quiz_content -> Rubrics and Answer_sheet
@@ -51,8 +55,7 @@ async def grade_quiz(
         await asyncio.to_thread(compress_pdf, storage_file.name, compressed_pdf.name)
         images = await asyncio.to_thread(pdf_to_images, compressed_pdf.name, temp_dir, dpi=150)
 
-        response = await asyncio.to_thread(
-            openai_client.responses.create,
+        response = await openai_client.responses.create(
             model="gpt-5-mini",
             input=[
                 {"role": "system", "content": GRADER_SYSTEM_PROMPT},
@@ -104,7 +107,7 @@ async def grade_quiz(
 async def grade_question(
     data_context: DataContext,
     bucket: Bucket,
-    openai_client: OpenAI,
+    openai_client: AsyncOpenAI,
     *,
     past_paper_id: str,
     solution_file_path: str,
@@ -137,8 +140,7 @@ async def grade_question(
             bucket, past_paper.marking_scheme_file_path, temp_dir
         )
 
-        response = await asyncio.to_thread(
-            openai_client.responses.create,
+        response = await openai_client.responses.create(
             model="gpt-5-mini",
             input=[
                 {"role": "system", "content": GRADER_SYSTEM_PROMPT},
