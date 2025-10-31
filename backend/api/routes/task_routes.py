@@ -1,9 +1,7 @@
-import asyncio
-
 from fastapi import APIRouter, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse
 from loguru import logger
-from openai import OpenAI
+from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 from api.dal import lecture_db, room_db, task_db
@@ -85,7 +83,7 @@ async def analyze_task_set(
     task_set_id: str,
     background_tasks: BackgroundTasks,
     data_context: DataContext = Depends(get_data_context),
-    openai_client: OpenAI = Depends(get_openai_client),
+    openai_client: AsyncOpenAI = Depends(get_openai_client),
 ):
     in_progress = await _do_analysis(
         background_tasks, data_context, openai_client=openai_client, task_set_id=task_set_id
@@ -107,7 +105,7 @@ def _job_identifier(data_context: DataContext, _: tuple, kwargs: dict) -> str:
 
 
 @background_job_decorator(_job_identifier)
-async def _do_analysis(data_context: DataContext, openai_client: OpenAI, task_set_id: str):
+async def _do_analysis(data_context: DataContext, openai_client: AsyncOpenAI, task_set_id: str):
     room_id = await task_db.get_room_id_for_task_set(data_context, task_set_id)
     assert room_id
     all_task_sets = await task_db.list_task_sets_for_room(
@@ -151,8 +149,7 @@ async def _do_analysis(data_context: DataContext, openai_client: OpenAI, task_se
         combined_transcript[-10:],
     )
 
-    openai_res = await asyncio.to_thread(
-        openai_client.responses.parse,
+    openai_res = await openai_client.responses.parse(
         model="gpt-5-mini",
         input=[
             {"role": "system", "content": MISTAKE_ANALYSIS_SYSTEM_PROMPT},

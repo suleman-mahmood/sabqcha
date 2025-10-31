@@ -1,8 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse
 from google.cloud.storage import Bucket
-from loguru import logger
-from openai import OpenAI
+from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 from api.controllers import transcribe_controller
@@ -35,7 +34,7 @@ async def create_lecture(
 async def transcribe_lecture_group(
     lecture_group_id: str,
     background_tasks: BackgroundTasks,
-    openai_client: OpenAI = Depends(get_openai_client),
+    openai_client: AsyncOpenAI = Depends(get_openai_client),
     bucket: Bucket = Depends(get_bucket),
     data_context: DataContext = Depends(get_data_context),
 ):

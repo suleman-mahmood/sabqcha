@@ -6,7 +6,7 @@ import firebase_admin
 from fastapi import Request
 from firebase_admin import credentials, firestore, storage
 from loguru import logger
-from openai import OpenAI
+from openai import AsyncOpenAI
 from psycopg.rows import class_row
 from psycopg_pool import AsyncConnectionPool
 from pydantic import BaseModel
@@ -24,7 +24,7 @@ _db = firestore.client()
 
 
 # Setup OpenAI
-_openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+_openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -88,5 +88,5 @@ def get_firestore():
     return _db
 
 
-def get_openai_client():
+def get_openai_client() -> AsyncOpenAI:
     return _openai_client
