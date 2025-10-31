@@ -1,7 +1,3 @@
-# Sabaqcha
+# Sool
 
-AI-based Gamified Micro Learning Ed-Tech Platform.
-![Sabqcha](./assets/Sabaqcha.png)
-
-## System Architecture
-
+AI Gamified Micro-Learning Platform.
