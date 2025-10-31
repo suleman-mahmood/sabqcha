@@ -106,5 +106,13 @@ async def signup_student(
     return JSONResponse({"token": session_id})
 
 
-# TODO: Implement Student login
-# TODO: Implement Student link accounts on different devices
+class SetDisplayNameBody(BaseModel):
+    display_name: str
+
+
+@router.post("/display-name")
+async def set_display_name(
+    body: SetDisplayNameBody,
+    data_context: DataContext = Depends(get_data_context),
+):
+    await user_db.change_display_name(data_context, data_context.user_id, body.display_name)

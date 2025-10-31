@@ -139,3 +139,16 @@ async def get_user(data_context: DataContext | UnAuthDataContext, user_id: str) 
         if not row:
             return None
     return User(id=row[0], display_name=row[1])
+
+
+async def change_display_name(data_context: DataContext, user_id: str, display_name: str):
+    async with data_context.get_cursor() as cur:
+        await cur.execute(
+            """
+            update sabqcha_user set
+                display_name = %s
+            where
+                public_id = %s
+            """,
+            (display_name, user_id),
+        )
