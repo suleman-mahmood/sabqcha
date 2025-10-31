@@ -120,6 +120,12 @@ export default function Dashboard() {
 
     const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
+    // Full name setup dialog state
+    const [showNameDialog, setShowNameDialog] = useState(false);
+    const [fullName, setFullName] = useState("");
+    const [savingName, setSavingName] = useState(false);
+    const [nameError, setNameError] = useState<string | null>(null);
+
     useEffect(() => {
         const initAuth = async () => {
             try {
@@ -138,6 +144,49 @@ export default function Dashboard() {
     useEffect(() => {
         fetchRooms();
     }, []);
+
+    // Show full name dialog when user exists and hasn't completed setup
+    useEffect(() => {
+        try {
+            const seen = localStorage.getItem("has_setup_full_name");
+            if (seen === null || seen === "false") {
+                setShowNameDialog(true);
+            }
+        } catch (e) {
+            // ignore
+        }
+    }, [user]);
+
+    const submitFullName = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        const name = fullName.trim();
+        if (!name) {
+            setNameError("Full name is required");
+            return;
+        }
+        setSavingName(true);
+        setNameError(null);
+        try {
+            const res = await fetch('/api/user/display-name', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ display_name: name }),
+            });
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || 'Failed to set display name');
+            }
+            try { localStorage.setItem('has_setup_full_name', 'true'); } catch (e) { }
+            setShowNameDialog(false);
+            // refetch display-name
+            await fetchRooms();
+        } catch (err) {
+            console.error('Failed to set display name:', err);
+            setNameError('Failed to save name');
+        } finally {
+            setSavingName(false);
+        }
+    };
 
     useEffect(() => {
         if (rooms.length && !selectedRoomId) {
@@ -405,6 +454,32 @@ export default function Dashboard() {
                     <div className="flex items-center">
                         <span className="text-sm text-muted-foreground">Hi, {user?.displayName}</span>
                     </div>
+
+                    {/* Full name setup dialog */}
+                    <Dialog open={showNameDialog} onOpenChange={setShowNameDialog}>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Set your full name</DialogTitle>
+                                <DialogDescription>Please provide your full name for display.</DialogDescription>
+                            </DialogHeader>
+
+                            <form onSubmit={submitFullName} className="mt-4 grid gap-3">
+                                <label className="text-sm">
+                                    Full name
+                                    <input className="mt-1 w-full rounded-md border px-3 py-2" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+                                </label>
+
+                                {nameError && <div className="text-sm text-destructive">{nameError}</div>}
+
+                                <DialogFooter>
+                                    <DialogClose asChild>
+                                        <Button variant="outline">Cancel</Button>
+                                    </DialogClose>
+                                    <Button type="submit" disabled={savingName}>{savingName ? <Spinner /> : 'Save'}</Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
 
                     <div className="flex items-center space-x-3">
                         {/* Invite code button in header */}
