@@ -91,7 +91,21 @@ async def list_rooms(data_context: DataContext, user_id: str, user_role: UserRol
                                 join lecture_group lg on
                                     lg.row_id = ts.lecture_group_row_id and
                                     lg.room_row_id = r.row_id
-                            order by ts.created_at desc
+                                left join task_set_attempt tsa on
+                                    tsa.task_set_row_id = ts.row_id
+                            where
+                                ts.day = case extract(dow from now())
+                                    when 1 then 'MONDAY'::week_day
+                                    when 2 then 'TUESDAY'::week_day
+                                    when 3 then 'WEDNESDAY'::week_day
+                                    when 4 then 'THURSDAY'::week_day
+                                    when 5 then 'FRIDAY'::week_day
+                                    else null
+                                end and
+                                tsa.row_id is null
+                            order by 
+                                lg.created_at DESC,
+                                ts.created_at ASC
                             limit 1
                         ) as daily_task_set_id,
                         sr.score
