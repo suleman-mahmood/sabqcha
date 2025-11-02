@@ -108,7 +108,8 @@ async def list_rooms(data_context: DataContext, user_id: str, user_role: UserRol
                                 ts.created_at ASC
                             limit 1
                         ) as daily_task_set_id,
-                        sr.score
+                        sr.score,
+                        r.ai_tutor_enabled
                     from
                         room r
                         join student_room sr on sr.room_row_id = r.row_id
@@ -127,6 +128,7 @@ async def list_rooms(data_context: DataContext, user_id: str, user_role: UserRol
                         invite_code=r[2],
                         daily_task_set_id=r[3],
                         score=r[4],
+                        ai_tutor_enabled=r[5],
                     )
                     for r in rows
                 ]
@@ -154,6 +156,7 @@ async def list_rooms(data_context: DataContext, user_id: str, user_role: UserRol
                         invite_code=r[2],
                         daily_task_set_id=None,
                         score=None,
+                        ai_tutor_enabled=False,
                     )
                     for r in rows
                 ]
@@ -178,7 +181,12 @@ async def get_room(data_context: DataContext, room_id: str) -> Room | None:
         if not row:
             return None
     return Room(
-        id=row[0], display_name=row[1], invite_code=row[2], daily_task_set_id=None, score=None
+        id=row[0],
+        display_name=row[1],
+        invite_code=row[2],
+        daily_task_set_id=None,
+        score=None,
+        ai_tutor_enabled=False,
     )
 
 
@@ -193,7 +201,8 @@ async def get_student_room(data_context: DataContext, user_id: str, room_id: str
                 r.public_id,
                 r.display_name,
                 r.invite_code,
-                sr.score
+                sr.score,
+                r.ai_tutor_enabled
             from
                 room r
                 join student_room sr on
@@ -208,7 +217,12 @@ async def get_student_room(data_context: DataContext, user_id: str, room_id: str
         if not row:
             return None
     return Room(
-        id=row[0], display_name=row[1], invite_code=row[2], score=row[3], daily_task_set_id=None
+        id=row[0],
+        display_name=row[1],
+        invite_code=row[2],
+        score=row[3],
+        daily_task_set_id=None,
+        ai_tutor_enabled=row[4],
     )
 
 

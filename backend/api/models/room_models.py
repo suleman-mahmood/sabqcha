@@ -9,6 +9,7 @@ class Room(BaseModel):
     invite_code: str
     daily_task_set_id: str | None
     score: int | None
+    ai_tutor_enabled: bool
 
 
 class DashboardResponse(BaseModel):

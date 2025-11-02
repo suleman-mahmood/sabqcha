@@ -48,6 +48,8 @@ async def transcribe_lecture_group(
 
 @router.get("/room/{room_id}", response_model=ListLecturesRes)
 async def list_lectures(room_id: str, data_context: DataContext = Depends(get_data_context)):
+    assert data_context.user_role == UserRole.TEACHER
+
     this_week, pas_weeks = await lecture_db.list_lectures_ui(data_context, room_id)
     room = await room_db.get_room(data_context, room_id)
     assert room

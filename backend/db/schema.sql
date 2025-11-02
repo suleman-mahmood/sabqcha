@@ -1,4 +1,4 @@
-\restrict xclvJN7CQZKzR1DnLH8CjETHL7zNSwVlc38m9Riz3kLvv5CR6eQPQByDSjhbQ1Q
+\restrict Sej2T6vuA5ySXY1alBFpsNZuaMwHshLn0Xxqd2oWachmaw4g8vJI4bi3gR3s8FY
 
 -- Dumped from database version 16.4 (Debian 16.4-1.pgdg120+1)
 -- Dumped by pg_dump version 17.6
@@ -289,7 +289,8 @@ CREATE TABLE public.room (
     invite_code text NOT NULL,
     teacher_row_id bigint NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    subject_row_id bigint
+    subject_row_id bigint,
+    ai_tutor_enabled boolean DEFAULT false NOT NULL
 );
 
 
@@ -1128,7 +1129,7 @@ ALTER TABLE ONLY public.teacher
 -- PostgreSQL database dump complete
 --
 
-\unrestrict xclvJN7CQZKzR1DnLH8CjETHL7zNSwVlc38m9Riz3kLvv5CR6eQPQByDSjhbQ1Q
+\unrestrict Sej2T6vuA5ySXY1alBFpsNZuaMwHshLn0Xxqd2oWachmaw4g8vJI4bi3gR3s8FY
 
 
 --
@@ -1152,4 +1153,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20251018061509'),
     ('20251025080248'),
     ('20251025143919'),
-    ('20251026083021');
+    ('20251026083021'),
+    ('20251102153351');
