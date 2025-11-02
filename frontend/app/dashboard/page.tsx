@@ -35,6 +35,7 @@ interface Room {
     invite_code?: string;
     daily_task_set_id?: string | null;
     score?: number | null;
+    ai_tutor_enabled?: boolean;
 }
 
 function ThemeToggle() {
@@ -220,6 +221,7 @@ export default function Dashboard() {
                     invite_code: r.invite_code,
                     daily_task_set_id: r.daily_task_set_id ?? null,
                     score: typeof r.score === 'number' ? r.score : (r.score == null ? null : Number(r.score)),
+                    ai_tutor_enabled: r.ai_tutor_enabled ?? false,
                 }));
                 setRooms(mapped);
             }
@@ -793,7 +795,7 @@ export default function Dashboard() {
                                                     </Button>
                                                 )}
 
-                                                {user && user.userRole !== "TEACHER" && (
+                                                {user && user.userRole !== "TEACHER" && room.ai_tutor_enabled && (
                                                     <Button
                                                         className="mt-2 w-full"
                                                         variant="outline"
