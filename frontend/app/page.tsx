@@ -50,9 +50,11 @@ export default function Page(): React.ReactElement {
                         className="text-5xl md:text-6xl lg:text-7xl font-extrabold leading-tight bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent"
                         variants={fadeInUp}
                     >
-                        10% More Admissions.
+                        Empowering schools
                         <br />
-                        90% Savings on inefficient means.
+                        Adopt out-of-classroom
+                        <br />
+                        Learning Experience
                     </motion.h1>
 
                     <motion.p
@@ -85,21 +87,46 @@ export default function Page(): React.ReactElement {
                 viewport={{ once: true, amount: 0.3 }}
                 variants={container}
             >
-                <div className="container mx-auto max-w-4xl px-6">
-                    <motion.div className="text-center" variants={scaleIn}>
-                        <div className="inline-flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-2xl px-8 py-6 border border-white/20">
-                            <div className="text-6xl md:text-7xl font-extrabold text-white">
-                                B → A
+                <div className="container mx-auto max-w-6xl px-6">
+                    <div className="grid md:grid-cols-3 gap-6">
+                        <motion.div className="text-center" variants={scaleIn}>
+                            <div className="bg-white/10 backdrop-blur-sm rounded-2xl px-6 py-8 border border-white/20 h-full flex flex-col items-center justify-center">
+                                <div className="text-5xl md:text-6xl font-extrabold text-white mb-2">
+                                    +10%
+                                </div>
+                                <div className="text-xl md:text-2xl font-bold text-white mb-1">More Admissions</div>
+                                <div className="text-sm text-indigo-100">after full activation</div>
+                                <div className="text-xs text-indigo-200 mt-2">(10% more revenue)</div>
                             </div>
-                            <div className="text-left">
-                                <div className="text-2xl md:text-3xl font-bold text-white">At Least 1+ Grade</div>
-                                <div className="text-lg text-indigo-100">improvement</div>
+                        </motion.div>
+
+                        <motion.div className="text-center" variants={scaleIn}>
+                            <div className="bg-white/10 backdrop-blur-sm rounded-2xl px-6 py-8 border border-white/20 h-full flex flex-col items-center justify-center">
+                                <div className="text-5xl md:text-6xl font-extrabold text-white mb-2">
+                                    90%
+                                </div>
+                                <div className="text-xl md:text-2xl font-bold text-white mb-1">Savings</div>
+                                <div className="text-sm text-indigo-100">on tuition fees</div>
+                                <div className="text-xs text-indigo-200 mt-2">& learning resources</div>
                             </div>
-                        </div>
-                        <p className="mt-6 text-lg text-white/90 max-w-2xl mx-auto">
-                            Students consistently score higher with gamified daily practice and AI-powered personalized learning
-                        </p>
-                    </motion.div>
+                        </motion.div>
+
+                        <motion.div className="text-center" variants={scaleIn}>
+                            <div className="bg-white/10 backdrop-blur-sm rounded-2xl px-6 py-8 border border-white/20 h-full flex flex-col items-center justify-center">
+                                <div className="text-5xl md:text-6xl font-extrabold text-white mb-2">
+                                    B → A
+                                </div>
+                                <div className="text-xl md:text-2xl font-bold text-white mb-1">At Least 1+ Grade</div>
+                                <div className="text-sm text-indigo-100">improvement</div>
+                            </div>
+                        </motion.div>
+                    </div>
+                    <motion.p
+                        className="mt-8 text-lg text-white/90 max-w-3xl mx-auto text-center"
+                        variants={fadeIn}
+                    >
+                        Schools grow admissions and revenue, parents save on costly tuitions, and students achieve higher grades with gamified AI-powered learning
+                    </motion.p>
                 </div>
             </motion.section>
 
@@ -670,6 +697,6 @@ export default function Page(): React.ReactElement {
                     </div>
                 </div>
             </motion.footer>
-        </main>
+        </main >
     );
 }
