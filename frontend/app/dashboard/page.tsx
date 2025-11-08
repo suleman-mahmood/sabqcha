@@ -6,7 +6,7 @@ import { storage } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { Upload, Copy, Flame, TrendingUp } from "lucide-react";
+import { Upload, Copy, Flame, TrendingUp, Menu } from "lucide-react";
 import {
     Select,
     SelectTrigger,
@@ -28,6 +28,14 @@ import {
     DialogClose,
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+    Menubar,
+    MenubarContent,
+    MenubarItem,
+    MenubarMenu,
+    MenubarSeparator,
+    MenubarTrigger,
+} from "@/components/ui/menubar";
 
 interface Room {
     id: string;
@@ -489,7 +497,8 @@ export default function Dashboard() {
                         </DialogContent>
                     </Dialog>
 
-                    <div className="flex items-center space-x-3">
+                    {/* Desktop menu - hidden on mobile */}
+                    <div className="hidden md:flex items-center space-x-3">
                         {/* Invite code button in header */}
                         {user && user.userRole !== "TEACHER" && (
                             <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
@@ -597,7 +606,135 @@ export default function Dashboard() {
 
                         <ThemeToggle />
                     </div>
+
+                    {/* Mobile menubar - visible only on mobile */}
+                    <div className="md:hidden">
+                        <Menubar>
+                            <MenubarMenu>
+                                <MenubarTrigger>
+                                    <Menu className="h-5 w-5" />
+                                </MenubarTrigger>
+                                <MenubarContent align="end">
+                                    {user && user.userRole !== "TEACHER" && (
+                                        <>
+                                            <MenubarItem onSelect={() => setInviteOpen(true)}>
+                                                Join Classroom
+                                            </MenubarItem>
+                                            <MenubarSeparator />
+                                        </>
+                                    )}
+                                    {!isLoggedIn ? (
+                                        <MenubarItem onSelect={() => setLoginOpen(true)}>
+                                            Login
+                                        </MenubarItem>
+                                    ) : (
+                                        <MenubarItem onSelect={logoutUser}>
+                                            Logout
+                                        </MenubarItem>
+                                    )}
+                                    <MenubarSeparator />
+                                    <MenubarItem asChild>
+                                        <div onClick={(e) => e.stopPropagation()}>
+                                            <ThemeToggle />
+                                        </div>
+                                    </MenubarItem>
+                                </MenubarContent>
+                            </MenubarMenu>
+                        </Menubar>
+
+                        {/* Invite Dialog */}
+                        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Enter Invite Code</DialogTitle>
+                                    <DialogDescription>Provide an invite code to join a classroom.</DialogDescription>
+                                </DialogHeader>
+                                <form onSubmit={handleJoinInvite} className="mt-4 grid gap-3">
+                                    <label className="text-sm">
+                                        Invite Code
+                                        <input className="mt-1 w-full rounded-md border px-3 py-2" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} required />
+                                    </label>
+
+                                    {inviteError && <div className="text-sm text-destructive">{inviteError}</div>}
+
+                                    <DialogFooter>
+                                        <DialogClose asChild>
+                                            <Button variant="outline">Cancel</Button>
+                                        </DialogClose>
+                                        <Button type="submit" disabled={inviteLoading}>{inviteLoading ? <Spinner /> : 'Join'}</Button>
+                                    </DialogFooter>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
+
+                        {/* Login/Signup Dialog */}
+                        <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Account</DialogTitle>
+                                    <DialogDescription className="text-sm text-foreground mt-2">Logging In / Signing Up will tie the local data to it.</DialogDescription>
+                                </DialogHeader>
+
+                                <Tabs defaultValue="login" className="mt-4">
+                                    <TabsList>
+                                        <TabsTrigger value="login">Login</TabsTrigger>
+                                        <TabsTrigger value="signup">Student Sign Up</TabsTrigger>
+                                    </TabsList>
+
+                                    <TabsContent value="login">
+                                        <form onSubmit={handleLogin} className="mt-4 grid gap-3">
+                                            <label className="text-sm">
+                                                Email
+                                                <input className="mt-1 w-full rounded-md border px-3 py-2" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} type="email" required />
+                                            </label>
+                                            <label className="text-sm">
+                                                Password
+                                                <input className="mt-1 w-full rounded-md border px-3 py-2" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} type="password" required />
+                                            </label>
+
+                                            {loginError && <div className="text-sm text-destructive">{loginError}</div>}
+
+                                            <DialogFooter>
+                                                <DialogClose asChild>
+                                                    <Button variant="outline">Cancel</Button>
+                                                </DialogClose>
+                                                <Button type="submit" disabled={loginLoading}>{loginLoading ? <Spinner /> : 'Login'}</Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </TabsContent>
+
+                                    <TabsContent value="signup">
+                                        <form onSubmit={handleSignup} className="mt-4 grid gap-3">
+                                            <label className="text-sm">
+                                                Email
+                                                <input className="mt-1 w-full rounded-md border px-3 py-2" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} type="email" required />
+                                            </label>
+                                            <label className="text-sm">
+                                                Password
+                                                <input className="mt-1 w-full rounded-md border px-3 py-2" value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} type="password" required />
+                                            </label>
+                                            <label className="text-sm">
+                                                Re-enter Password
+                                                <input className="mt-1 w-full rounded-md border px-3 py-2" value={signupPasswordConfirm} onChange={(e) => setSignupPasswordConfirm(e.target.value)} type="password" required />
+                                            </label>
+
+                                            {signupError && <div className="text-sm text-destructive">{signupError}</div>}
+
+                                            <DialogFooter>
+                                                <DialogClose asChild>
+                                                    <Button variant="outline">Cancel</Button>
+                                                </DialogClose>
+                                                <Button type="submit" disabled={signupLoading}>{signupLoading ? <Spinner /> : 'Sign up'}</Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </TabsContent>
+                                </Tabs>
+
+                            </DialogContent>
+                        </Dialog>
+                    </div>
                 </div>
+
                 {/* 🔹 Title */}
                 <h1 className="text-3xl font-bold text-center mb-8">Dashboard</h1>
 
