@@ -6,7 +6,7 @@ import { storage } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { Upload, Copy } from "lucide-react";
+import { Upload, Copy, Flame } from "lucide-react";
 import {
     Select,
     SelectTrigger,
@@ -453,8 +453,14 @@ export default function Dashboard() {
         <div className="min-h-screen bg-background p-6">
             <div className="max-w-5xl mx-auto">
                 <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-4">
                         <span className="text-sm text-muted-foreground">Hi, {user?.displayName}</span>
+                        {user && user.userRole !== "TEACHER" && (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-accent rounded-full">
+                                <Flame className="h-4 w-4 text-orange-500" />
+                                <span className="text-sm font-semibold">5 day streak</span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Full name setup dialog */}
