@@ -6,7 +6,7 @@ import { storage } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { Upload, Copy, Flame } from "lucide-react";
+import { Upload, Copy, Flame, TrendingUp } from "lucide-react";
 import {
     Select,
     SelectTrigger,
@@ -601,84 +601,102 @@ export default function Dashboard() {
                 {/* 🔹 Title */}
                 <h1 className="text-3xl font-bold text-center mb-8">Dashboard</h1>
 
-                {/* 🔸 Upload & Leaderboards */}
+                {/* 🔸 Upload & Insights */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                     {user && user.userRole === "TEACHER" && (
-                        /* Upload card */
-                        <Card className="md:col-span-2 p-6">
-                            <CardContent>
-                                <div className="flex flex-col sm:flex-row items-start gap-4">
-                                    <div className="p-3 bg-accent rounded-lg self-center sm:self-start">
-                                        <Upload />
-                                    </div>
-
-                                    <div className="flex-1">
-                                        <h3 className="text-lg font-semibold mb-1">Add Lecture</h3>
-                                        <p className="text-sm text-muted-foreground mb-4">Upload audio to add a lecture.</p>
-
-                                        <div className="mb-4 space-y-3">
-                                            <div className="flex flex-col sm:flex-row items-start gap-3">
-                                                <Select value={selectedRoomId ?? ""} onValueChange={(v) => setSelectedRoomId(v)}>
-                                                    <SelectTrigger size="sm">
-                                                        <SelectValue placeholder="Select room" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {rooms.map((r) => (
-                                                            <SelectItem key={r.id} value={r.id}>
-                                                                {r.display_name}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-
-                                                <input
-                                                    required
-                                                    type="text"
-                                                    value={lectureTitle}
-                                                    onChange={(e) => setLectureTitle(e.target.value)}
-                                                    placeholder="Lecture title*"
-                                                    className="border border-input px-3 py-2 rounded-md w-full sm:w-80 text-sm"
-                                                />
-                                            </div>
-
+                        <>
+                            {/* Upload card */}
+                            <Card className="md:col-span-2 p-6">
+                                <CardContent>
+                                    <div className="flex flex-col sm:flex-row items-start gap-4">
+                                        <div className="p-3 bg-accent rounded-lg self-center sm:self-start">
+                                            <Upload />
                                         </div>
 
-                                        <div className="flex flex-col sm:flex-row items-center gap-3">
-                                            <Button disabled={uploading || !lectureTitle || !selectedRoomId}>
-                                                <label className="cursor-pointer">
-                                                    {uploading ? 'Uploading...' : 'Select Media File'}
+                                        <div className="flex-1">
+                                            <h3 className="text-lg font-semibold mb-1">Add Lecture</h3>
+                                            <p className="text-sm text-muted-foreground mb-4">Upload audio to add a lecture.</p>
+
+                                            <div className="mb-4 space-y-3">
+                                                <div className="flex flex-col sm:flex-row items-start gap-3">
+                                                    <Select value={selectedRoomId ?? ""} onValueChange={(v) => setSelectedRoomId(v)}>
+                                                        <SelectTrigger size="sm">
+                                                            <SelectValue placeholder="Select room" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {rooms.map((r) => (
+                                                                <SelectItem key={r.id} value={r.id}>
+                                                                    {r.display_name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+
                                                     <input
-                                                        type="file"
-                                                        accept="audio/*,video/*"
-                                                        hidden
-                                                        onChange={(e) => e.target.files && handleUpload(e.target.files[0])}
+                                                        required
+                                                        type="text"
+                                                        value={lectureTitle}
+                                                        onChange={(e) => setLectureTitle(e.target.value)}
+                                                        placeholder="Lecture title*"
+                                                        className="border border-input px-3 py-2 rounded-md w-full sm:w-80 text-sm"
                                                     />
-                                                </label>
-                                            </Button>
-
-                                            <p className="text-sm text-muted-foreground">Supported: audio/video files</p>
-                                        </div>
-
-                                        {uploading && (
-                                            <div className="mt-4">
-                                                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                                                    <div className="h-full bg-primary" style={{ width: `${progress}%` }} />
                                                 </div>
-                                                <p className="text-xs text-muted-foreground mt-2">Uploading... {progress}%</p>
+
                                             </div>
-                                        )}
 
-                                        {errorMessage && (
-                                            <Alert variant="destructive" className="mt-3">
-                                                <AlertTitle>Error</AlertTitle>
-                                                <AlertDescription>{errorMessage}</AlertDescription>
-                                            </Alert>
-                                        )}
+                                            <div className="flex flex-col sm:flex-row items-center gap-3">
+                                                <Button disabled={uploading || !lectureTitle || !selectedRoomId}>
+                                                    <label className="cursor-pointer">
+                                                        {uploading ? 'Uploading...' : 'Select Media File'}
+                                                        <input
+                                                            type="file"
+                                                            accept="audio/*,video/*"
+                                                            hidden
+                                                            onChange={(e) => e.target.files && handleUpload(e.target.files[0])}
+                                                        />
+                                                    </label>
+                                                </Button>
 
+                                                <p className="text-sm text-muted-foreground">Supported: audio/video files</p>
+                                            </div>
+
+                                            {uploading && (
+                                                <div className="mt-4">
+                                                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                                                        <div className="h-full bg-primary" style={{ width: `${progress}%` }} />
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground mt-2">Uploading... {progress}%</p>
+                                                </div>
+                                            )}
+
+                                            {errorMessage && (
+                                                <Alert variant="destructive" className="mt-3">
+                                                    <AlertTitle>Error</AlertTitle>
+                                                    <AlertDescription>{errorMessage}</AlertDescription>
+                                                </Alert>
+                                            )}
+
+                                        </div>
                                     </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                </CardContent>
+                            </Card>
+
+                            {/* Insights card */}
+                            <Card
+                                className="p-6 cursor-pointer transition-all hover:shadow-lg hover:border-primary"
+                                onClick={() => router.push('/teacher-insights')}
+                            >
+                                <CardContent className="flex flex-col items-center justify-center h-full text-center">
+                                    <div className="p-4 bg-primary/10 rounded-full mb-4">
+                                        <TrendingUp className="h-8 w-8 text-primary" />
+                                    </div>
+                                    <h3 className="text-lg font-semibold mb-2">Insights</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        View student performance, weak concepts, and analytics
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        </>
                     )}
                 </div>
 
