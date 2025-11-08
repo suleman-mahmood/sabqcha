@@ -795,15 +795,13 @@ export default function Dashboard() {
                                                     </Button>
                                                 )}
 
-                                                {user && user.userRole !== "TEACHER" && (
-                                                    <Button
-                                                        className="mt-2 w-full"
-                                                        variant="outline"
-                                                        onClick={(e) => { e.stopPropagation(); router.push(`/room/${room.id}/lectures`); }}
-                                                    >
-                                                        Lecture Recordings
-                                                    </Button>
-                                                )}
+                                                <Button
+                                                    className="mt-2 w-full"
+                                                    variant="outline"
+                                                    onClick={(e) => { e.stopPropagation(); router.push(`/room/${room.id}/lectures`); }}
+                                                >
+                                                    Lecture Recordings
+                                                </Button>
 
                                                 {user && user.userRole !== "TEACHER" && room.ai_tutor_enabled && (
                                                     <Button
