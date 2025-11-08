@@ -138,6 +138,7 @@ async def list_lectures_ui(
                     jsonb_build_object(
                         'id', l.public_id,
                         'title', l.title,
+                        'file_path', l.file_path,
                         'created_at', l.created_at
                     )
                 )

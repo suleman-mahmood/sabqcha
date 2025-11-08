@@ -16,6 +16,7 @@ class Lecture(BaseModel):
 class LectureEntryRes(BaseModel):
     id: str
     title: str
+    file_path: str
     created_at: datetime
 
 
