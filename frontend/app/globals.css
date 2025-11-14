@@ -122,3 +122,34 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  @keyframes tilt {
+    0%, 100% {
+      transform: rotate(0deg);
+    }
+    25% {
+      transform: rotate(1deg);
+    }
+    75% {
+      transform: rotate(-1deg);
+    }
+  }
+
+  @keyframes gradient-rotate {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  .animate-tilt {
+    animation: tilt 3s ease-in-out infinite, gradient-rotate 4s ease infinite;
+    background-size: 200% 200%;
+  }
+}
